@@ -219,6 +219,10 @@ class Game {
         this.bossSpawned = false;
         this.bossWave = 5; // 第5波出现Boss
         
+        // 波次系统
+        this.waveSystem = new WaveSystem();
+        this.enemyBullets = []; // 敌人子弹数组
+        
         // UI面板状态
         this.showSkillPanel = false;
         this.showAchievementPanel = false;
@@ -480,46 +484,19 @@ class Game {
     }
     
     spawnEnemy() {
-        // 检查是否应该生成Boss
+        // 使用波次系统生成敌人
+        const newEnemies = this.waveSystem.update(16, this.enemies, this);
+        
+        // 添加新生成的敌人到游戏中
+        newEnemies.forEach(enemy => {
+            this.enemies.push(enemy);
+        });
+        
+        // 检查是否应该生成Boss（保留原有逻辑作为备用）
         if (this.wave >= this.bossWave && !this.bossSpawned && this.enemies.length === 0) {
             this.spawnBoss();
             return;
         }
-        
-        const side = Math.floor(Math.random() * 4);
-        let x, y;
-        
-        switch(side) {
-            case 0: // 上边
-                x = Math.random() * this.width;
-                y = -20;
-                break;
-            case 1: // 右边
-                x = this.width + 20;
-                y = Math.random() * this.height;
-                break;
-            case 2: // 下边
-                x = Math.random() * this.width;
-                y = this.height + 20;
-                break;
-            case 3: // 左边
-                x = -20;
-                y = Math.random() * this.height;
-                break;
-        }
-        
-        // 根据波次决定敌人类型
-        let enemyType = 'normal';
-        const rand = Math.random();
-        
-        if (this.wave >= 3) {
-            if (rand < 0.2) enemyType = 'fast';
-            else if (rand < 0.35) enemyType = 'tank';
-        } else if (this.wave >= 2) {
-            if (rand < 0.15) enemyType = 'fast';
-        }
-        
-        this.enemies.push(new Enemy(x, y, enemyType));
     }
     
     spawnBoss() {
@@ -608,11 +585,22 @@ class Game {
                 // 时间减缓时，敌人移动速度降低
                 const originalSpeed = enemy.speed;
                 enemy.speed *= timeMultiplier;
-                enemy.update(this.player.x, this.player.y, this.obstacles);
+                enemy.update(this.player.x, this.player.y, this.obstacles, deltaTime);
                 enemy.speed = originalSpeed;
             } else {
-                enemy.update(this.player.x, this.player.y, this.obstacles);
+                enemy.update(this.player.x, this.player.y, this.obstacles, deltaTime);
             }
+            
+            // 收集敌人子弹
+            if (enemy.bullets && enemy.bullets.length > 0) {
+                this.enemyBullets.push(...enemy.bullets);
+                enemy.bullets = [];
+            }
+        });
+        
+        // 更新敌人子弹
+        this.enemyBullets.forEach(bullet => {
+            bullet.update();
         });
         
         // 更新Boss（应用时间减缓效果）
@@ -707,11 +695,14 @@ class Game {
                     }
                     
                     if (enemy.health <= 0) {
+                        // 通知波次系统敌人被击杀
+                        this.waveSystem.onEnemyKilled(enemy);
+                        
                         // 移除敌人
                         this.enemies.splice(j, 1);
                         
                         // 增加分数和击杀数
-                        let points = 10;
+                        let points = enemy.scoreValue || 10;
                         if (enemy.type === 'fast') points = 15;
                         else if (enemy.type === 'tank') points = 25;
                         
@@ -787,7 +778,7 @@ class Game {
         for (let i = this.enemies.length - 1; i >= 0; i--) {
             const enemy = this.enemies[i];
             if (this.isColliding(this.player, enemy)) {
-                const damaged = this.player.takeDamage(20);
+                const damaged = this.player.takeDamage(enemy.damage || 20);
                 
                 if (damaged) {
                     this.enemies.splice(i, 1);
@@ -797,6 +788,32 @@ class Game {
                     
                     // 播放玩家受伤音效
                     this.playSound('playerHit');
+                    
+                    if (this.player.health <= 0) {
+                        this.gameOver();
+                    }
+                }
+            }
+        }
+        
+        // 敌人子弹与玩家碰撞
+        for (let i = this.enemyBullets.length - 1; i >= 0; i--) {
+            const bullet = this.enemyBullets[i];
+            if (this.isColliding(this.player, bullet)) {
+                const damaged = this.player.takeDamage(bullet.damage || 10);
+                
+                if (damaged) {
+                    // 移除子弹
+                    this.enemyBullets.splice(i, 1);
+                    
+                    // 创建受伤粒子效果
+                    this.createExplosion(this.player.x, this.player.y, '#4ecdc4');
+                    
+                    // 播放玩家受伤音效
+                    this.playSound('playerHit');
+                    
+                    // 记录统计
+                    this.player.statisticsSystem.recordDamageTaken(bullet.damage || 10);
                     
                     if (this.player.health <= 0) {
                         this.gameOver();
@@ -966,6 +983,12 @@ class Game {
             bullet.y >= -10 && bullet.y <= this.height + 10
         );
         
+        // 清理超出边界的敌人子弹
+        this.enemyBullets = this.enemyBullets.filter(bullet => 
+            bullet.x >= -50 && bullet.x <= this.width + 50 &&
+            bullet.y >= -50 && bullet.y <= this.height + 50
+        );
+        
         // 清理死亡的粒子
         this.particles = this.particles.filter(particle => particle.life > 0);
         
@@ -977,6 +1000,9 @@ class Game {
         document.getElementById('health').textContent = Math.max(0, this.player.health);
         document.getElementById('score').textContent = this.score;
         document.getElementById('enemyCount').textContent = this.enemies.length;
+        
+        // 同步波次系统的波次到游戏波次
+        this.wave = this.waveSystem.currentWave;
         
         // 添加波次和击杀数显示
         const waveElement = document.getElementById('wave');
@@ -1030,9 +1056,14 @@ class Game {
         
         // 绘制游戏对象
         this.player.render(this.ctx);
-        
+       // 绘制敌人
         this.enemies.forEach(enemy => {
             enemy.render(this.ctx);
+        });
+        
+        // 绘制敌人子弹
+        this.enemyBullets.forEach(bullet => {
+            bullet.render(this.ctx);
         });
         
         this.bosses.forEach(boss => {
@@ -1274,6 +1305,12 @@ class Game {
         this.ctx.fillStyle = '#feca57';
         this.ctx.font = '16px Arial';
         this.ctx.fillText(`技能点数: ${this.player.skillSystem.skillPoints}`, this.width - 150, 30);
+        
+        // 显示波次信息
+        this.waveSystem.renderWaveInfo(this.ctx, this.width - 250, 50);
+        
+        // 显示波次目标（在右下角）
+        this.waveSystem.renderWaveGoals(this.ctx, this.width - 300, this.height - 150);
     }
     
     renderSkillPanel() {
