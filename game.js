@@ -86,6 +86,95 @@ const CONFIG = {
             effect: 'shield',
             duration: 180
         }
+    },
+    LEVELS: {
+        CITY: {
+            name: '城市废墟',
+            backgroundColor: '#2c3e50',
+            gridColor: '#34495e',
+            obstacles: [
+                { x: 200, y: 150, width: 80, height: 60, type: 'building' },
+                { x: 400, y: 300, width: 100, height: 80, type: 'building' },
+                { x: 600, y: 100, width: 60, height: 120, type: 'building' }
+            ]
+        },
+        FOREST: {
+            name: '森林环境',
+            backgroundColor: '#27ae60',
+            gridColor: '#2ecc71',
+            obstacles: [
+                { x: 150, y: 200, width: 40, height: 40, type: 'tree' },
+                { x: 350, y: 150, width: 40, height: 40, type: 'tree' },
+                { x: 500, y: 350, width: 40, height: 40, type: 'tree' },
+                { x: 250, y: 400, width: 40, height: 40, type: 'tree' }
+            ]
+        },
+        FACTORY: {
+            name: '工厂区域',
+            backgroundColor: '#7f8c8d',
+            gridColor: '#95a5a6',
+            obstacles: [
+                { x: 300, y: 200, width: 120, height: 40, type: 'machine' },
+                { x: 150, y: 350, width: 80, height: 60, type: 'machine' },
+                { x: 550, y: 150, width: 60, height: 100, type: 'machine' }
+            ]
+        },
+        DESERT: {
+            name: '沙漠地带',
+            backgroundColor: '#f39c12',
+            gridColor: '#e67e22',
+            obstacles: [
+                { x: 200, y: 250, width: 60, height: 30, type: 'rock' },
+                { x: 450, y: 180, width: 80, height: 40, type: 'rock' },
+                { x: 350, y: 380, width: 50, height: 25, type: 'rock' }
+            ]
+        }
+    },
+    GAME_MODES: {
+        SURVIVAL: {
+            name: '生存模式',
+            description: '坚持指定时间',
+            targetTime: 180 // 3分钟
+        },
+        ELIMINATION: {
+            name: '歼灭模式',
+            description: '击败指定数量敌人',
+            targetKills: 50
+        },
+        ESCORT: {
+            name: '护送模式',
+            description: '保护NPC到达目标点',
+            npcHealth: 100
+        }
+    },
+    BOSSES: {
+        TANK_BOSS: {
+            name: '重装坦克',
+            health: 50,
+            speed: 0.8,
+            radius: 30,
+            color: '#8e44ad',
+            abilities: ['charge', 'spawn_minions'],
+            damage: 30
+        },
+        SPEED_BOSS: {
+            name: '疾风杀手',
+            health: 30,
+            speed: 2.5,
+            radius: 20,
+            color: '#e74c3c',
+            abilities: ['dash', 'clone'],
+            damage: 25
+        },
+        FINAL_BOSS: {
+            name: '终极毁灭者',
+            health: 100,
+            speed: 1.2,
+            radius: 40,
+            color: '#2c3e50',
+            abilities: ['laser_beam', 'missile_rain', 'shield'],
+            damage: 40
+        }
     }
 };
 
@@ -101,6 +190,9 @@ class Game {
         this.bullets = [];
         this.particles = [];
         this.powerups = [];
+        this.obstacles = [];
+        this.bosses = [];
+        this.npcs = [];
         
         this.keys = {};
         this.mouse = { x: 0, y: 0 };
@@ -118,6 +210,17 @@ class Game {
         // 武器系统
         this.currentWeapon = 'PISTOL';
         this.availableWeapons = ['PISTOL'];
+        
+        // 关卡系统
+        this.currentLevel = 'CITY';
+        this.gameMode = 'SURVIVAL';
+        this.levelStartTime = Date.now();
+        this.missionComplete = false;
+        this.bossSpawned = false;
+        this.bossWave = 5; // 第5波出现Boss
+        
+        // 初始化关卡
+        this.initializeLevel();
         
         // 音效系统
         this.audioContext = null;
@@ -180,6 +283,130 @@ class Game {
             this.sounds[soundName]();
         }
     }
+    
+    initializeLevel() {
+        const levelConfig = CONFIG.LEVELS[this.currentLevel];
+        
+        // 清空现有障碍物
+        this.obstacles = [];
+        
+        // 创建障碍物
+        if (levelConfig.obstacles) {
+            levelConfig.obstacles.forEach(obstacleData => {
+                this.obstacles.push(new Obstacle(
+                    obstacleData.x,
+                    obstacleData.y,
+                    obstacleData.width,
+                    obstacleData.height,
+                    obstacleData.type
+                ));
+            });
+        } else {
+            // 如果没有预定义障碍物，生成一些随机障碍物
+            this.generateRandomObstacles();
+        }
+        
+        // 根据游戏模式初始化特殊对象
+        if (this.gameMode === 'ESCORT') {
+            this.npcs = [new NPC(100, 100, this.width - 100, this.height - 100)];
+        }
+    }
+    
+    generateRandomObstacles() {
+        const obstacleCount = 5 + Math.floor(Math.random() * 5); // 5-10个障碍物
+        const obstacleTypes = ['wall', 'crate', 'barrel', 'rock'];
+        
+        for (let i = 0; i < obstacleCount; i++) {
+            let x, y, width, height;
+            let attempts = 0;
+            let validPosition = false;
+            
+            // 尝试找到一个不与玩家起始位置冲突的位置
+            while (!validPosition && attempts < 50) {
+                x = Math.random() * (this.width - 100) + 50;
+                y = Math.random() * (this.height - 100) + 50;
+                width = 30 + Math.random() * 40;
+                height = 30 + Math.random() * 40;
+                
+                // 确保不与玩家起始位置冲突
+                const playerStartX = this.width / 2;
+                const playerStartY = this.height / 2;
+                const distanceToPlayer = Math.sqrt(
+                    (x + width/2 - playerStartX) ** 2 + 
+                    (y + height/2 - playerStartY) ** 2
+                );
+                
+                if (distanceToPlayer > 100) {
+                    validPosition = true;
+                }
+                attempts++;
+            }
+            
+            if (validPosition) {
+                const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+                this.obstacles.push(new Obstacle(x, y, width, height, type));
+            }
+        }
+    }
+    
+    switchLevel(newLevel) {
+        this.currentLevel = newLevel;
+        this.initializeLevel();
+        this.wave = 1;
+        this.killCount = 0;
+        this.bossSpawned = false;
+        this.levelStartTime = Date.now();
+        this.missionComplete = false;
+    }
+    
+    checkMissionObjective() {
+        const modeConfig = CONFIG.GAME_MODES[this.gameMode];
+        
+        switch (this.gameMode) {
+            case 'SURVIVAL':
+                const elapsedTime = (Date.now() - this.levelStartTime) / 1000;
+                if (elapsedTime >= modeConfig.targetTime) {
+                    this.missionComplete = true;
+                    this.completeMission();
+                }
+                break;
+                
+            case 'ELIMINATION':
+                if (this.killCount >= modeConfig.targetKills) {
+                    this.missionComplete = true;
+                    this.completeMission();
+                }
+                break;
+                
+            case 'ESCORT':
+                if (this.npcs.length > 0) {
+                    const npc = this.npcs[0];
+                    if (npc.reachedTarget) {
+                        this.missionComplete = true;
+                        this.completeMission();
+                    }
+                }
+                break;
+        }
+    }
+    
+    completeMission() {
+        this.score += 1000; // 任务完成奖励
+        
+        // 切换到下一个关卡
+        const levels = Object.keys(CONFIG.LEVELS);
+        const currentIndex = levels.indexOf(this.currentLevel);
+        
+        if (currentIndex < levels.length - 1) {
+            setTimeout(() => {
+                this.switchLevel(levels[currentIndex + 1]);
+            }, 2000);
+        } else {
+            // 所有关卡完成
+            this.gameRunning = false;
+            alert(`恭喜！所有关卡完成！最终得分: ${this.score}`);
+        }
+    }
 
     setupEventListeners() {
         // 键盘事件
@@ -218,6 +445,12 @@ class Game {
     }
     
     spawnEnemy() {
+        // 检查是否应该生成Boss
+        if (this.wave >= this.bossWave && !this.bossSpawned && this.enemies.length === 0) {
+            this.spawnBoss();
+            return;
+        }
+        
         const side = Math.floor(Math.random() * 4);
         let x, y;
         
@@ -252,6 +485,29 @@ class Game {
         }
         
         this.enemies.push(new Enemy(x, y, enemyType));
+    }
+    
+    spawnBoss() {
+        const bossTypes = Object.keys(CONFIG.BOSSES);
+        let bossType;
+        
+        // 根据波次选择Boss类型
+        if (this.wave >= 15) {
+            bossType = 'FINAL_BOSS';
+        } else if (this.wave >= 10) {
+            bossType = 'SPEED_BOSS';
+        } else {
+            bossType = 'TANK_BOSS';
+        }
+        
+        const x = this.width / 2;
+        const y = -50;
+        
+        this.bosses.push(new Boss(x, y, bossType));
+        this.bossSpawned = true;
+        
+        // 显示Boss出现提示
+        console.log(`Boss ${CONFIG.BOSSES[bossType].name} 出现！`);
     }
     
     spawnPowerup() {
@@ -298,7 +554,27 @@ class Game {
         
         // 更新敌人
         this.enemies.forEach(enemy => {
-            enemy.update(this.player.x, this.player.y);
+            enemy.update(this.player.x, this.player.y, this.obstacles);
+        });
+        
+        // 更新Boss
+        this.bosses.forEach(boss => {
+            boss.update(this.player, this.obstacles);
+            
+            // 检查Boss是否需要生成小怪
+            if (boss.shouldSpawnMinion()) {
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 50;
+                const minionX = boss.x + Math.cos(angle) * distance;
+                const minionY = boss.y + Math.sin(angle) * distance;
+                
+                this.enemies.push(new Enemy(minionX, minionY, 'fast'));
+            }
+        });
+        
+        // 更新NPC
+        this.npcs.forEach(npc => {
+            npc.update(this.player, this.enemies, this.obstacles);
         });
         
         // 更新子弹
@@ -319,6 +595,9 @@ class Game {
         // 碰撞检测
         this.checkCollisions();
         
+        // 检查任务目标
+        this.checkMissionObjective();
+        
         // 清理超出边界的对象
         this.cleanup();
         
@@ -327,6 +606,18 @@ class Game {
     }
     
     checkCollisions() {
+        // 子弹与障碍物碰撞
+        for (let i = this.bullets.length - 1; i >= 0; i--) {
+            const bullet = this.bullets[i];
+            for (let obstacle of this.obstacles) {
+                if (this.isCollidingWithRect(bullet, obstacle)) {
+                    this.bullets.splice(i, 1);
+                    this.createExplosion(bullet.x, bullet.y, '#95a5a6');
+                    break;
+                }
+            }
+        }
+        
         // 子弹与敌人碰撞
         for (let i = this.bullets.length - 1; i >= 0; i--) {
             const bullet = this.bullets[i];
@@ -364,7 +655,36 @@ class Game {
                     }
                     
                     // 检查是否进入下一波
-                    if (this.killCount % 10 === 0) {
+                    if (this.killCount % 10 === 0 && !this.bossSpawned) {
+                        this.nextWave();
+                    }
+                    
+                    break;
+                }
+            }
+        }
+        
+        // 子弹与Boss碰撞
+        for (let i = this.bullets.length - 1; i >= 0; i--) {
+            const bullet = this.bullets[i];
+            for (let j = this.bosses.length - 1; j >= 0; j--) {
+                const boss = this.bosses[j];
+                if (this.isColliding(bullet, boss)) {
+                    this.createExplosion(boss.x, boss.y, '#8e44ad');
+                    this.playSound('enemyDeath');
+                    
+                    this.bullets.splice(i, 1);
+                    boss.takeDamage(bullet.damage);
+                    
+                    if (bullet.explosive) {
+                        this.createExplosiveEffect(bullet.x, bullet.y, bullet.explosionRadius);
+                    }
+                    
+                    if (boss.health <= 0) {
+                        this.bosses.splice(j, 1);
+                        this.score += 500 * this.wave;
+                        this.killCount += 10;
+                        this.bossSpawned = false;
                         this.nextWave();
                     }
                     
@@ -395,6 +715,43 @@ class Game {
             }
         }
         
+        // Boss与玩家碰撞
+        for (let i = this.bosses.length - 1; i >= 0; i--) {
+            const boss = this.bosses[i];
+            if (this.isColliding(this.player, boss)) {
+                const damaged = this.player.takeDamage(boss.damage);
+                
+                if (damaged) {
+                    // 创建受伤粒子效果
+                    this.createExplosion(this.player.x, this.player.y, '#4ecdc4');
+                    this.playSound('playerHit');
+                    
+                    if (this.player.health <= 0) {
+                        this.gameOver();
+                    }
+                }
+            }
+        }
+        
+        // 敌人与NPC碰撞（护送模式）
+        if (this.gameMode === 'ESCORT' && this.npcs.length > 0) {
+            const npc = this.npcs[0];
+            for (let i = this.enemies.length - 1; i >= 0; i--) {
+                const enemy = this.enemies[i];
+                if (this.isColliding(npc, enemy)) {
+                    npc.takeDamage(20);
+                    this.enemies.splice(i, 1);
+                    
+                    this.createExplosion(npc.x, npc.y, '#ffa502');
+                    
+                    if (npc.health <= 0) {
+                        this.npcs = [];
+                        this.gameOver();
+                    }
+                }
+            }
+        }
+        
         // 玩家与道具碰撞
         for (let i = this.powerups.length - 1; i >= 0; i--) {
             const powerup = this.powerups[i];
@@ -403,6 +760,17 @@ class Game {
                 this.powerups.splice(i, 1);
             }
         }
+    }
+    
+    isCollidingWithRect(circle, rect) {
+        // 圆形与矩形碰撞检测
+        const closestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.width));
+        const closestY = Math.max(rect.y, Math.min(circle.y, rect.y + rect.height));
+        
+        const dx = circle.x - closestX;
+        const dy = circle.y - closestY;
+        
+        return (dx * dx + dy * dy) <= (circle.radius * circle.radius);
     }
     
     isColliding(obj1, obj2) {
@@ -551,18 +919,30 @@ class Game {
     }
     
     render() {
-        // 清空画布
-        this.ctx.fillStyle = '#1a1a2e';
-        this.ctx.fillRect(0, 0, this.width, this.height);
+        // 清空画布并绘制关卡背景
+        this.drawLevelBackground();
         
         // 绘制网格背景
         this.drawGrid();
+        
+        // 绘制障碍物
+        this.obstacles.forEach(obstacle => {
+            obstacle.render(this.ctx);
+        });
         
         // 绘制游戏对象
         this.player.render(this.ctx);
         
         this.enemies.forEach(enemy => {
             enemy.render(this.ctx);
+        });
+        
+        this.bosses.forEach(boss => {
+            boss.render(this.ctx);
+        });
+        
+        this.npcs.forEach(npc => {
+            npc.render(this.ctx);
         });
         
         this.bullets.forEach(bullet => {
@@ -582,10 +962,23 @@ class Game {
         
         // 绘制武器信息
         this.drawWeaponInfo();
+        
+        // 绘制关卡信息
+        this.drawLevelInfo();
+        
+        // 绘制任务目标
+        this.drawMissionObjective();
+    }
+    
+    drawLevelBackground() {
+        const levelConfig = CONFIG.LEVELS[this.currentLevel];
+        this.ctx.fillStyle = levelConfig.backgroundColor;
+        this.ctx.fillRect(0, 0, this.width, this.height);
     }
     
     drawGrid() {
-        this.ctx.strokeStyle = '#2a2a4e';
+        const levelConfig = CONFIG.LEVELS[this.currentLevel];
+        this.ctx.strokeStyle = levelConfig.gridColor;
         this.ctx.lineWidth = 1;
         
         for (let x = 0; x < this.width; x += 50) {
@@ -600,6 +993,81 @@ class Game {
             this.ctx.moveTo(0, y);
             this.ctx.lineTo(this.width, y);
             this.ctx.stroke();
+        }
+    }
+    
+    drawLevelInfo() {
+        const levelConfig = CONFIG.LEVELS[this.currentLevel];
+        
+        // 绘制关卡信息背景
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        this.ctx.fillRect(this.width - 220, 10, 200, 60);
+        
+        // 绘制关卡名称
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = '16px Arial';
+        this.ctx.fillText(`关卡: ${levelConfig.name}`, this.width - 210, 30);
+        
+        // 绘制游戏模式
+        const modeConfig = CONFIG.GAME_MODES[this.gameMode];
+        this.ctx.font = '14px Arial';
+        this.ctx.fillText(`模式: ${modeConfig.name}`, this.width - 210, 50);
+    }
+    
+    drawMissionObjective() {
+        const modeConfig = CONFIG.GAME_MODES[this.gameMode];
+        
+        // 绘制任务目标背景
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        this.ctx.fillRect(this.width - 220, 80, 200, 80);
+        
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = '14px Arial';
+        this.ctx.fillText('任务目标:', this.width - 210, 100);
+        
+        let progressText = '';
+        
+        switch (this.gameMode) {
+            case 'SURVIVAL':
+                const elapsedTime = Math.floor((Date.now() - this.levelStartTime) / 1000);
+                const remainingTime = Math.max(0, modeConfig.targetTime - elapsedTime);
+                progressText = `生存时间: ${remainingTime}s`;
+                break;
+                
+            case 'ELIMINATION':
+                const remaining = Math.max(0, modeConfig.targetKills - this.killCount);
+                progressText = `剩余击杀: ${remaining}`;
+                break;
+                
+            case 'ESCORT':
+                if (this.npcs.length > 0) {
+                    const npc = this.npcs[0];
+                    const progress = Math.floor(npc.getProgress() * 100);
+                    progressText = `护送进度: ${progress}%`;
+                } else {
+                    progressText = 'NPC已死亡';
+                }
+                break;
+        }
+        
+        this.ctx.fillText(progressText, this.width - 210, 120);
+        
+        // Boss血量条
+        if (this.bosses.length > 0) {
+            const boss = this.bosses[0];
+            this.ctx.fillText('Boss血量:', this.width - 210, 140);
+            
+            const barWidth = 180;
+            const barHeight = 8;
+            const healthPercent = boss.health / boss.maxHealth;
+            
+            // 背景条
+            this.ctx.fillStyle = '#ff4757';
+            this.ctx.fillRect(this.width - 210, 145, barWidth, barHeight);
+            
+            // 血量条
+            this.ctx.fillStyle = '#2ed573';
+            this.ctx.fillRect(this.width - 210, 145, barWidth * healthPercent, barHeight);
         }
     }
     
@@ -883,19 +1351,54 @@ class Enemy {
         }
     }
     
-    update(playerX, playerY) {
+    update(playerX, playerY, obstacles = []) {
         // 向玩家移动
         const dx = playerX - this.x;
         const dy = playerY - this.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
+        let moveX = 0;
+        let moveY = 0;
+        
         if (distance > 0) {
-            this.x += (dx / distance) * this.speed;
-            this.y += (dy / distance) * this.speed;
-            this.angle = Math.atan2(dy, dx);
+            moveX = (dx / distance) * this.speed;
+            moveY = (dy / distance) * this.speed;
         }
         
+        // 避开障碍物
+        obstacles.forEach(obstacle => {
+            if (obstacle.destroyed) return;
+            
+            const obstacleDistance = this.getDistanceToObstacle(obstacle);
+            if (obstacleDistance < this.radius + 10) {
+                // 计算避开方向
+                const avoidX = this.x - (obstacle.x + obstacle.width / 2);
+                const avoidY = this.y - (obstacle.y + obstacle.height / 2);
+                const avoidDistance = Math.sqrt(avoidX * avoidX + avoidY * avoidY);
+                
+                if (avoidDistance > 0) {
+                    moveX += (avoidX / avoidDistance) * this.speed * 0.5;
+                    moveY += (avoidY / avoidDistance) * this.speed * 0.5;
+                }
+            }
+        });
+        
+        this.x += moveX;
+        this.y += moveY;
+        this.angle = Math.atan2(moveY, moveX);
+        
         this.animationFrame++;
+    }
+    
+    getDistanceToObstacle(obstacle) {
+        // 计算圆形到矩形的最短距离
+        const closestX = Math.max(obstacle.x, Math.min(this.x, obstacle.x + obstacle.width));
+        const closestY = Math.max(obstacle.y, Math.min(this.y, obstacle.y + obstacle.height));
+        
+        const dx = this.x - closestX;
+        const dy = this.y - closestY;
+        
+        return Math.sqrt(dx * dx + dy * dy);
     }
     
     render(ctx) {
