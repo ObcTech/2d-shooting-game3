@@ -242,6 +242,20 @@ class Game {
         this.lastTime = 0;
         this.frameCount = 0;
         
+        // 性能优化器
+        this.performanceOptimizer = new PerformanceOptimizer();
+        this.memoryMonitor = new MemoryMonitor();
+        this.particleQuality = 1.0;
+        this.maxParticles = 150;
+        
+        // UI管理器
+        this.uiManager = new UIManager(this);
+        window.uiManager = this.uiManager; // 全局访问
+        
+        // 测试调试器
+        this.gameTester = new GameTester(this);
+        window.gameTester = this.gameTester; // 全局访问，便于调试
+        
         this.setupEventListeners();
         this.gameLoop();
     }
@@ -950,7 +964,8 @@ class Game {
     }
     
     createExplosion(x, y, color = '#ff6b6b') {
-        const particleCount = Math.random() * 6 + 8;
+        const baseParticleCount = Math.random() * 6 + 8;
+        const particleCount = Math.floor(baseParticleCount * this.particleQuality);
         for (let i = 0; i < particleCount; i++) {
             const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.5;
             const speed = Math.random() * 4 + 2;
@@ -977,23 +992,44 @@ class Game {
     }
     
     cleanup() {
-        // 清理超出边界的子弹
-        this.bullets = this.bullets.filter(bullet => 
+        // 使用优化的清理方法，限制每帧清理数量以避免卡顿
+        this.bullets = optimizedFilter(this.bullets, bullet => 
             bullet.x >= -10 && bullet.x <= this.width + 10 &&
-            bullet.y >= -10 && bullet.y <= this.height + 10
+            bullet.y >= -10 && bullet.y <= this.height + 10, 15
         );
         
-        // 清理超出边界的敌人子弹
-        this.enemyBullets = this.enemyBullets.filter(bullet => 
+        this.enemyBullets = optimizedFilter(this.enemyBullets, bullet => 
             bullet.x >= -50 && bullet.x <= this.width + 50 &&
-            bullet.y >= -50 && bullet.y <= this.height + 50
+            bullet.y >= -50 && bullet.y <= this.height + 50, 15
         );
         
-        // 清理死亡的粒子
-        this.particles = this.particles.filter(particle => particle.life > 0);
+        // 限制粒子数量以提高性能
+        if (this.particles.length > this.maxParticles) {
+            this.particles = this.particles.slice(-this.maxParticles);
+        }
+        this.particles = optimizedFilter(this.particles, particle => particle.life > 0, 20);
         
-        // 清理过期的道具
-        this.powerups = this.powerups.filter(powerup => powerup.life > 0);
+        this.powerups = optimizedFilter(this.powerups, powerup => powerup.life > 0, 5);
+        
+        // 检查内存使用情况
+        if (this.memoryMonitor.checkMemory()) {
+            // 强制清理更多对象
+            this.forceCleanup();
+        }
+    }
+    
+    forceCleanup() {
+        // 强制清理，减少对象数量
+        this.particles = this.particles.slice(-Math.floor(this.maxParticles * 0.7));
+        
+        // 清理远距离的敌人子弹
+        this.enemyBullets = this.enemyBullets.filter(bullet => {
+            const dist = Math.sqrt(
+                Math.pow(bullet.x - this.player.x, 2) + 
+                Math.pow(bullet.y - this.player.y, 2)
+            );
+            return dist < 400; // 只保留400像素范围内的子弹
+        });
     }
     
     updateUI() {
@@ -1120,6 +1156,10 @@ class Game {
         if (this.showStatisticsPanel) {
             this.player.statisticsSystem.renderPanel(this.ctx, this.width, this.height);
         }
+        
+        // 渲染UI改进功能
+        this.uiManager.renderDebugInfo(this.ctx, this);
+        this.uiManager.renderFPS(this.ctx, this.fps);
     }
     
     drawLevelBackground() {
@@ -1366,9 +1406,21 @@ class Game {
     }
     
     gameLoop(currentTime = 0) {
+        const frameStartTime = performance.now();
+        
         this.calculateFPS(currentTime);
         this.update();
         this.render();
+        
+        // 性能监控和优化
+        const frameTime = performance.now() - frameStartTime;
+        this.performanceOptimizer.updateMetrics(frameTime);
+        
+        // 每60帧进行一次性能调整
+        if (this.frameCount % 60 === 0) {
+            this.performanceOptimizer.adjustQuality(this);
+        }
+        
         requestAnimationFrame((time) => this.gameLoop(time));
     }
 }

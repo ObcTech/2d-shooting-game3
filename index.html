@@ -121,6 +121,21 @@
                 <span id="enemyCount" class="value">0</span>
             </div>
         </div>
+        
+        <div id="controls" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 12px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px;">
+            <div><strong>控制说明:</strong></div>
+            <div>WASD - 移动</div>
+            <div>鼠标 - 瞄准射击</div>
+            <div>F1 - 设置面板</div>
+            <div>F2 - 显示FPS</div>
+            <div>F3 - 调试信息</div>
+            <div>ESC - 关闭面板</div>
+            <div style="margin-top: 10px;">
+                <button onclick="gameTester.runAutomatedTests()" style="margin: 2px; padding: 5px; font-size: 10px;">运行测试</button>
+                <button onclick="gameTester.runStressTest(10000)" style="margin: 2px; padding: 5px; font-size: 10px;">压力测试</button>
+                <button onclick="console.log(gameTester.getDiagnostics())" style="margin: 2px; padding: 5px; font-size: 10px;">诊断信息</button>
+            </div>
+        </div>
         <div class="instructions">
             <h3>🎮 游戏说明</h3>
             <p><strong>控制方式:</strong> WASD 移动，自动瞄准射击，1-4键切换武器</p>
@@ -154,6 +169,9 @@
     <script src="achievements.js"></script>
     <script src="statistics.js"></script>
     <script src="skills.js"></script>
+    <script src="performance-optimization.js"></script>
+    <script src="ui-improvements.js"></script>
+    <script src="test-debug.js"></script>
     <script src="enemy.js"></script>
     <script src="wave.js"></script>
     <script src="game.js"></script>
