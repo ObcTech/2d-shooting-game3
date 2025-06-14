@@ -113,18 +113,38 @@
                 <span id="kills" class="value">0</span>
             </div>
             <div class="stat">
+                <span class="label">武器:</span>
+                <span class="value" id="weapon">手枪</span>
+            </div>
+            <div class="stat">
                 <span class="label">敌人数量:</span>
                 <span id="enemyCount" class="value">0</span>
             </div>
         </div>
         <div class="instructions">
             <h3>🎮 游戏说明</h3>
-            <p><strong>WASD</strong> - 移动角色</p>
-            <p><strong>自动瞄准</strong> - 自动瞄准最近的敌人</p>
-            <p><strong>自动射击</strong> - 自动向敌人射击</p>
+            <p><strong>控制方式:</strong> WASD 移动，自动瞄准射击，1-4键切换武器</p>
+            <p><strong>武器系统:</strong></p>
+            <ul>
+                <li>🔫 <strong>手枪</strong> - 基础武器，射速中等</li>
+                <li>💥 <strong>散弹枪</strong> - 一次发射5发子弹，近距离威力大</li>
+                <li>⚡ <strong>激光枪</strong> - 高伤害，射速快</li>
+                <li>🚀 <strong>火箭筒</strong> - 爆炸伤害，范围攻击</li>
+            </ul>
+            <p><strong>道具系统:</strong></p>
+            <ul>
+                <li>💚 <strong>生命包</strong> - 恢复30点生命值</li>
+                <li>⚡ <strong>武器升级</strong> - 解锁下一级武器</li>
+                <li>💨 <strong>速度提升</strong> - 临时提升移动速度</li>
+                <li>🛡️ <strong>护盾</strong> - 临时免疫伤害</li>
+            </ul>
             <p><strong>敌人类型:</strong></p>
-            <p>🔴 普通敌人 (10分) | 🟠 快速敌人 (15分) | 🟣 坦克敌人 (25分)</p>
-            <p>每击杀10个敌人进入下一波，难度递增！</p>
+            <ul>
+                <li>🔴 <strong>普通敌人</strong> - 基础速度和生命值</li>
+                <li>🟠 <strong>快速敌人</strong> - 移动速度快，体积小</li>
+                <li>🟣 <strong>坦克敌人</strong> - 移动缓慢，生命值高</li>
+            </ul>
+            <p><strong>波次系统:</strong> 每击杀10个敌人进入下一波，难度逐渐增加</p>
         </div>
     </div>
     
