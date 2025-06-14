@@ -7,56 +7,124 @@
     <style>
         body {
             margin: 0;
-            padding: 0;
-            background: #000;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Arial', sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            font-family: Arial, sans-serif;
         }
         
         #gameContainer {
             position: relative;
-            border: 2px solid #333;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
         }
         
         #gameCanvas {
-            background: #1a1a2e;
-            cursor: crosshair;
+            border: 3px solid #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
         
-        #ui {
+        .ui-panel {
             position: absolute;
-            top: 10px;
-            left: 10px;
+            top: 30px;
+            left: 30px;
             color: white;
-            font-size: 18px;
-            z-index: 10;
+            font-size: 16px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
         }
         
-        #instructions {
+        .stat {
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 12px;
+            border-radius: 8px;
+            border-left: 4px solid #4ecdc4;
+            display: flex;
+            justify-content: space-between;
+            min-width: 120px;
+        }
+        
+        .label {
+            color: #b8b8b8;
+        }
+        
+        .value {
+            color: #4ecdc4;
+            font-weight: bold;
+        }
+        
+        .instructions {
             position: absolute;
-            bottom: 10px;
-            left: 10px;
-            color: #ccc;
-            font-size: 14px;
-            z-index: 10;
+            bottom: 30px;
+            right: 30px;
+            color: white;
+            font-size: 13px;
+            text-align: left;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px;
+            border-radius: 10px;
+            border-right: 4px solid #feca57;
+            max-width: 280px;
+        }
+        
+        .instructions h3 {
+            margin: 0 0 10px 0;
+            color: #feca57;
+            font-size: 16px;
+        }
+        
+        .instructions p {
+            margin: 5px 0;
+            line-height: 1.4;
+        }
+        
+        .instructions strong {
+            color: #4ecdc4;
         }
     </style>
 </head>
 <body>
     <div id="gameContainer">
         <canvas id="gameCanvas" width="800" height="600"></canvas>
-        <div id="ui">
-            <div>生命值: <span id="health">100</span></div>
-            <div>得分: <span id="score">0</span></div>
-            <div>敌人数量: <span id="enemyCount">0</span></div>
+        <div class="ui-panel">
+            <div class="stat">
+                <span class="label">生命值:</span>
+                <span id="health" class="value">100</span>
+            </div>
+            <div class="stat">
+                <span class="label">得分:</span>
+                <span id="score" class="value">0</span>
+            </div>
+            <div class="stat">
+                <span class="label">波次:</span>
+                <span id="wave" class="value">1</span>
+            </div>
+            <div class="stat">
+                <span class="label">击杀:</span>
+                <span id="kills" class="value">0</span>
+            </div>
+            <div class="stat">
+                <span class="label">敌人数量:</span>
+                <span id="enemyCount" class="value">0</span>
+            </div>
         </div>
-        <div id="instructions">
-            <div>WASD - 移动</div>
-            <div>自动瞄准最近敌人</div>
-            <div>自动射击</div>
+        <div class="instructions">
+            <h3>🎮 游戏说明</h3>
+            <p><strong>WASD</strong> - 移动角色</p>
+            <p><strong>自动瞄准</strong> - 自动瞄准最近的敌人</p>
+            <p><strong>自动射击</strong> - 自动向敌人射击</p>
+            <p><strong>敌人类型:</strong></p>
+            <p>🔴 普通敌人 (10分) | 🟠 快速敌人 (15分) | 🟣 坦克敌人 (25分)</p>
+            <p>每击杀10个敌人进入下一波，难度递增！</p>
         </div>
     </div>
     
