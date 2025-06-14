@@ -219,6 +219,12 @@ class Game {
         this.bossSpawned = false;
         this.bossWave = 5; // 第5波出现Boss
         
+        // UI面板状态
+        this.showSkillPanel = false;
+        this.showAchievementPanel = false;
+        this.showStatisticsPanel = false;
+        this.lastFrameTime = 0;
+        
         // 初始化关卡
         this.initializeLevel();
         
@@ -421,6 +427,35 @@ class Game {
                 }
             }
             
+            // 技能快捷键 (Q, E, R, T)
+            if (e.key.toLowerCase() === 'q') {
+                this.player.skillSystem.useSkill('dash');
+            } else if (e.key.toLowerCase() === 'e') {
+                this.player.skillSystem.useSkill('shield');
+            } else if (e.key.toLowerCase() === 'r') {
+                this.player.skillSystem.useSkill('timeSlowdown');
+            } else if (e.key.toLowerCase() === 't') {
+                this.player.skillSystem.useSkill('invincibility');
+            }
+            
+            // UI面板切换
+            if (e.key.toLowerCase() === 'k') {
+                this.showSkillPanel = !this.showSkillPanel;
+            } else if (e.key.toLowerCase() === 'j') {
+                this.showAchievementPanel = !this.showAchievementPanel;
+            } else if (e.key.toLowerCase() === 'l') {
+                this.showStatisticsPanel = !this.showStatisticsPanel;
+            }
+            
+            // 技能升级快捷键 (Shift + 数字)
+            if (e.shiftKey && e.key >= '1' && e.key <= '8') {
+                const skillIndex = parseInt(e.key) - 1;
+                const skillNames = ['rapidFire', 'multiShot', 'damageBoost', 'healthBoost', 'speedBoost', 'shield', 'dash', 'timeSlowdown'];
+                if (skillIndex < skillNames.length) {
+                    this.player.skillSystem.upgradeSkill(skillNames[skillIndex]);
+                }
+            }
+            
             // 音频上下文需要用户交互才能启动
             if (this.audioContext && this.audioContext.state === 'suspended') {
                 this.audioContext.resume();
@@ -523,8 +558,23 @@ class Game {
     update() {
         if (!this.gameRunning) return;
         
-        // 更新玩家
-        this.player.update(this.keys, this.width, this.height);
+        // 计算deltaTime
+        const currentTime = performance.now();
+        const deltaTime = this.lastFrameTime ? currentTime - this.lastFrameTime : 16.67;
+        this.lastFrameTime = currentTime;
+        
+        // 更新玩家（传递deltaTime）
+        this.player.update(this.keys, this.width, this.height, deltaTime);
+        
+        // 检查技能效果对玩家的影响
+        if (this.player.skillSystem.hasActiveSkill('invincibility')) {
+            this.player.isInvincible = true;
+        } else {
+            this.player.isInvincible = false;
+        }
+        
+        // 检查时间减缓效果
+        const timeMultiplier = this.player.skillSystem.hasActiveSkill('timeSlowdown') ? 0.3 : 1.0;
         
         // 自动瞄准和射击
         if (this.enemies.length > 0) {
@@ -552,14 +602,29 @@ class Game {
             this.powerupSpawnTimer = 0;
         }
         
-        // 更新敌人
+        // 更新敌人（应用时间减缓效果）
         this.enemies.forEach(enemy => {
-            enemy.update(this.player.x, this.player.y, this.obstacles);
+            if (timeMultiplier < 1.0) {
+                // 时间减缓时，敌人移动速度降低
+                const originalSpeed = enemy.speed;
+                enemy.speed *= timeMultiplier;
+                enemy.update(this.player.x, this.player.y, this.obstacles);
+                enemy.speed = originalSpeed;
+            } else {
+                enemy.update(this.player.x, this.player.y, this.obstacles);
+            }
         });
         
-        // 更新Boss
+        // 更新Boss（应用时间减缓效果）
         this.bosses.forEach(boss => {
-            boss.update(this.player, this.obstacles);
+            if (timeMultiplier < 1.0) {
+                const originalSpeed = boss.speed;
+                boss.speed *= timeMultiplier;
+                boss.update(this.player, this.obstacles);
+                boss.speed = originalSpeed;
+            } else {
+                boss.update(this.player, this.obstacles);
+            }
             
             // 检查Boss是否需要生成小怪
             if (boss.shouldSpawnMinion()) {
@@ -577,7 +642,7 @@ class Game {
             npc.update(this.player, this.enemies, this.obstacles);
         });
         
-        // 更新子弹
+        // 更新子弹（玩家子弹不受时间减缓影响）
         this.bullets.forEach(bullet => {
             bullet.update();
         });
@@ -652,6 +717,18 @@ class Game {
                         
                         this.score += points * this.wave;
                         this.killCount++;
+                        
+                        // 记录统计和成就
+                        this.player.statisticsSystem.recordKill(enemy.type);
+                        this.player.statisticsSystem.recordHit();
+                        this.player.achievementSystem.recordEvent('kill', enemy.type);
+                        
+                        // 给予技能点数
+                        this.player.skillSystem.addSkillPoints(1);
+                    } else {
+                        // 记录命中但未击杀
+                        this.player.statisticsSystem.recordHit();
+                        this.player.statisticsSystem.recordDamageDealt(bullet.damage);
                     }
                     
                     // 检查是否进入下一波
@@ -685,7 +762,20 @@ class Game {
                         this.score += 500 * this.wave;
                         this.killCount += 10;
                         this.bossSpawned = false;
+                        
+                        // 记录Boss击杀统计和成就
+                        this.player.statisticsSystem.recordKill('boss');
+                        this.player.statisticsSystem.recordHit();
+                        this.player.achievementSystem.recordEvent('bossKill', boss.type);
+                        
+                        // Boss击杀给予更多技能点数
+                        this.player.skillSystem.addSkillPoints(5);
+                        
                         this.nextWave();
+                    } else {
+                        // 记录对Boss的伤害
+                        this.player.statisticsSystem.recordHit();
+                        this.player.statisticsSystem.recordDamageDealt(bullet.damage);
                     }
                     
                     break;
@@ -914,7 +1004,15 @@ class Game {
     
     gameOver() {
         this.gameRunning = false;
-        alert(`游戏结束！最终得分: ${this.score}`);
+        
+        // 结束统计会话
+        this.player.statisticsSystem.endSession();
+        
+        // 显示最终统计
+        const stats = this.player.statisticsSystem.getSessionSummary();
+        const message = `游戏结束！\n最终得分: ${this.score}\n生存时间: ${stats.survivalTime}\n击杀数: ${stats.kills}\n命中率: ${stats.accuracy}%`;
+        
+        alert(message);
         location.reload();
     }
     
@@ -968,6 +1066,29 @@ class Game {
         
         // 绘制任务目标
         this.drawMissionObjective();
+        
+        // 绘制高级系统UI
+        this.renderAdvancedSystemsUI();
+        
+        // 绘制技能系统UI
+        this.player.skillSystem.renderSkillUI(this.ctx, {width: this.width, height: this.height});
+        
+        // 绘制成就通知
+        this.player.achievementSystem.renderNotifications(this.ctx, this.width, this.height);
+        
+        // 绘制统计系统HUD
+        this.player.statisticsSystem.renderHUD(this.ctx, this.width, this.height);
+        
+        // 绘制面板
+        if (this.showSkillPanel) {
+            this.renderSkillPanel();
+        }
+        if (this.showAchievementPanel) {
+            this.player.achievementSystem.renderPanel(this.ctx, this.width, this.height);
+        }
+        if (this.showStatisticsPanel) {
+            this.player.statisticsSystem.renderPanel(this.ctx, this.width, this.height);
+        }
     }
     
     drawLevelBackground() {
@@ -1135,6 +1256,78 @@ class Game {
         }
     }
     
+    renderAdvancedSystemsUI() {
+        // 绘制控制提示
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        this.ctx.fillRect(10, 10, 300, 120);
+        
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = '12px Arial';
+        this.ctx.fillText('技能快捷键:', 20, 30);
+        this.ctx.fillText('Q - 冲刺  E - 护盾  R - 时间减缓  T - 无敌', 20, 45);
+        this.ctx.fillText('面板切换:', 20, 65);
+        this.ctx.fillText('K - 技能面板  J - 成就面板  L - 统计面板', 20, 80);
+        this.ctx.fillText('技能升级:', 20, 100);
+        this.ctx.fillText('Shift + 1-8 升级对应技能', 20, 115);
+        
+        // 显示技能点数
+        this.ctx.fillStyle = '#feca57';
+        this.ctx.font = '16px Arial';
+        this.ctx.fillText(`技能点数: ${this.player.skillSystem.skillPoints}`, this.width - 150, 30);
+    }
+    
+    renderSkillPanel() {
+        // 绘制技能面板背景
+        const panelWidth = 600;
+        const panelHeight = 400;
+        const panelX = (this.width - panelWidth) / 2;
+        const panelY = (this.height - panelHeight) / 2;
+        
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.9)';
+        this.ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
+        
+        this.ctx.strokeStyle = '#feca57';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(panelX, panelY, panelWidth, panelHeight);
+        
+        // 标题
+        this.ctx.fillStyle = '#feca57';
+        this.ctx.font = 'bold 20px Arial';
+        this.ctx.fillText('技能系统 (按K关闭)', panelX + 20, panelY + 30);
+        
+        // 技能点数
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.font = '16px Arial';
+        this.ctx.fillText(`可用技能点数: ${this.player.skillSystem.skillPoints}`, panelX + 20, panelY + 60);
+        
+        // 绘制技能列表
+        const skills = this.player.skillSystem.passiveSkills || {};
+        const skillNames = Object.keys(skills);
+        let yOffset = 90;
+        
+        skillNames.forEach((skillName, index) => {
+            const skill = skills[skillName];
+            const x = panelX + 20 + (index % 2) * 280;
+            const y = panelY + yOffset + Math.floor(index / 2) * 60;
+            
+            // 技能名称和等级
+            this.ctx.fillStyle = skill.level > 0 ? '#2ed573' : '#95a5a6';
+            this.ctx.font = '14px Arial';
+            this.ctx.fillText(`${skill.name} (Lv.${skill.level}/${skill.maxLevel})`, x, y);
+            
+            // 技能描述
+            this.ctx.fillStyle = '#ffffff';
+            this.ctx.font = '12px Arial';
+            this.ctx.fillText(skill.description, x, y + 15);
+            
+            // 升级提示
+            if (skill.level < skill.maxLevel) {
+                this.ctx.fillStyle = '#feca57';
+                this.ctx.fillText(`Shift+${index + 1} 升级 (消耗: ${skill.cost}点)`, x, y + 30);
+            }
+        });
+    }
+    
     gameLoop(currentTime = 0) {
         this.calculateFPS(currentTime);
         this.update();
@@ -1154,13 +1347,36 @@ class Player {
         this.maxHealth = CONFIG.PLAYER.HEALTH;
         this.shootCooldown = 0;
         this.invulnerable = 0; // 无敌时间
+        this.isInvincible = false; // 技能无敌状态
         
         // 状态效果
         this.speedBoost = { active: false, multiplier: 1, duration: 0 };
         this.shield = { active: false, duration: 0 };
+        
+        // 集成高级系统
+        this.skillSystem = new SkillSystem(this);
+        this.achievementSystem = new AchievementSystem();
+        this.statisticsSystem = new StatisticsSystem();
+        
+        // 开始新的统计会话
+        this.statisticsSystem.startNewSession();
+        
+        // 设置初始最大生命值
+        this.updateMaxHealth();
     }
     
-    update(keys, canvasWidth, canvasHeight) {
+    update(keys, canvasWidth, canvasHeight, deltaTime = 16.67) {
+        // 更新技能系统（可能影响时间流逝）
+        const adjustedDeltaTime = this.skillSystem.update(deltaTime);
+        
+        // 应用技能系统的速度加成
+        const currentSpeed = this.baseSpeed * this.skillSystem.getSpeedMultiplier();
+        if (this.speedBoost.active) {
+            this.speed = currentSpeed * this.speedBoost.multiplier;
+        } else {
+            this.speed = currentSpeed;
+        }
+        
         // 移动
         let moveX = 0, moveY = 0;
         if (keys['w'] || keys['arrowup']) moveY -= this.speed;
@@ -1177,9 +1393,17 @@ class Player {
         this.x += moveX;
         this.y += moveY;
         
+        // 更新统计系统的位置追踪
+        this.statisticsSystem.updatePlayerPosition(this.x, this.y);
+        
         // 边界检测
         this.x = Math.max(this.radius, Math.min(canvasWidth - this.radius, this.x));
         this.y = Math.max(this.radius, Math.min(canvasHeight - this.radius, this.y));
+        
+        // 应用技能系统的射击速度加成
+        const fireRateMultiplier = this.skillSystem.getFireRateMultiplier();
+        const baseCooldown = 10;
+        const adjustedCooldown = Math.max(1, Math.round(baseCooldown / fireRateMultiplier));
         
         // 更新射击冷却和无敌时间
         if (this.shootCooldown > 0) this.shootCooldown--;
@@ -1187,6 +1411,21 @@ class Player {
         
         // 更新状态效果
         this.updateStatusEffects();
+        
+        // 更新成就系统的生存时间
+        this.achievementSystem.updateSurvivalTime(adjustedDeltaTime, this.health, this.maxHealth);
+        
+        // 更新统计系统的生存时间
+        // 注意：这里不需要调用特定方法，因为统计系统会在游戏结束时计算总时间
+    }
+    
+    // 更新最大生命值（基于技能）
+    updateMaxHealth() {
+        this.maxHealth = this.skillSystem.getMaxHealth();
+        // 如果当前生命值超过新的最大值，调整当前生命值
+        if (this.health > this.maxHealth) {
+            this.health = this.maxHealth;
+        }
     }
     
     shoot(targetX, targetY, bullets, game) {
@@ -1196,8 +1435,34 @@ class Player {
         const dy = targetY - this.y;
         const angle = Math.atan2(dy, dx);
         
-        bullets.push(new Bullet(this.x, this.y, angle));
-        this.shootCooldown = 10;
+        // 应用技能系统的射击速度加成
+        const fireRateMultiplier = this.skillSystem.getFireRateMultiplier();
+        const baseCooldown = 10;
+        const adjustedCooldown = Math.max(1, Math.round(baseCooldown / fireRateMultiplier));
+        
+        // 创建子弹并应用伤害加成
+        const bullet = new Bullet(this.x, this.y, angle);
+        bullet.damage *= this.skillSystem.getDamageMultiplier();
+        bullets.push(bullet);
+        
+        this.shootCooldown = adjustedCooldown;
+        
+        // 记录射击统计
+        this.statisticsSystem.recordShot();
+        
+        // 检查多重射击技能
+        if (this.skillSystem.hasSkill('multiShot') && this.skillSystem.skills.multiShot.level > 0) {
+            const extraBullets = this.skillSystem.skills.multiShot.level;
+            const angleSpread = 0.3; // 弧度
+            
+            for (let i = 1; i <= extraBullets; i++) {
+                const offsetAngle = angle + (i % 2 === 1 ? angleSpread : -angleSpread) * Math.ceil(i / 2);
+                const extraBullet = new Bullet(this.x, this.y, offsetAngle);
+                extraBullet.damage *= this.skillSystem.getDamageMultiplier();
+                bullets.push(extraBullet);
+                this.statisticsSystem.recordShot();
+            }
+        }
         
         if (game) game.playSound('shoot');
     }
@@ -1230,10 +1495,26 @@ class Player {
     }
     
     takeDamage(damage) {
-        if (this.invulnerable > 0 || this.shield.active) return false;
+        if (this.invulnerable > 0 || this.shield.active || this.isInvincible) return false;
         
-        this.health -= damage;
+        // 应用技能系统的防御加成
+        const actualDamage = Math.max(1, damage * this.skillSystem.getDamageReduction());
+        
+        this.health -= actualDamage;
         this.invulnerable = 60; // 1秒无敌时间
+        
+        // 记录伤害统计
+        this.statisticsSystem.recordDamageTaken(actualDamage);
+        
+        // 记录成就系统事件
+        this.achievementSystem.recordEvent('damageTaken', actualDamage);
+        
+        // 检查是否死亡
+        if (this.health <= 0) {
+            this.achievementSystem.recordEvent('death');
+            this.statisticsSystem.recordDeath();
+        }
+        
         return true;
     }
     
@@ -1267,10 +1548,13 @@ class Player {
     
     render(ctx) {
         // 无敌时闪烁效果
-        const alpha = this.invulnerable > 0 && Math.floor(this.invulnerable / 5) % 2 ? 0.5 : 1.0;
+        const alpha = (this.invulnerable > 0 && Math.floor(this.invulnerable / 5) % 2) || this.isInvincible ? 0.5 : 1.0;
         
         ctx.save();
         ctx.globalAlpha = alpha;
+        
+        // 绘制技能效果
+        this.skillSystem.renderEffects(ctx, this.x, this.y, this.radius);
         
         // 绘制护盾效果
         if (this.shield.active) {
@@ -1287,6 +1571,9 @@ class Player {
         let playerColor = '#4ecdc4';
         if (this.speedBoost.active) {
             playerColor = '#3742fa'; // 速度提升时变蓝
+        }
+        if (this.isInvincible) {
+            playerColor = '#ffd700'; // 无敌时变金色
         }
         
         ctx.fillStyle = playerColor;
