@@ -337,6 +337,16 @@ class SkillSystem {
         this.skillPoints += points;
     }
     
+    // 获得经验值（目前直接转换为技能点）
+    gainExperience(experience) {
+        // 简单实现：每100经验值转换为1技能点
+        const skillPointsGained = Math.floor(experience / 100);
+        if (skillPointsGained > 0) {
+            this.addSkillPoints(skillPointsGained);
+            console.log(`获得 ${experience} 经验值，转换为 ${skillPointsGained} 技能点`);
+        }
+    }
+    
     // 创建爆炸效果
     createExplosionEffect(x, y, radius) {
         if (window.game && window.game.particles) {

@@ -1,7 +1,7 @@
 // 波次系统 - 关卡管理和敌人生成
 
 class WaveSystem {
-    constructor() {
+    constructor(autoStart = true) {
         this.currentWave = 1;
         this.enemiesInWave = 0;
         this.enemiesKilled = 0;
@@ -16,8 +16,16 @@ class WaveSystem {
         this.maxEnemiesOnScreen = 15;
         this.waveGoals = {};
         this.bossWaves = [10, 20, 30, 50]; // Boss波次
+        this.autoStart = autoStart;
         
         this.initializeWaveGoals();
+        
+        // 自动启动第一波
+        if (this.autoStart) {
+            setTimeout(() => {
+                this.startWave();
+            }, 500); // 延迟500ms给游戏初始化时间
+        }
     }
     
     initializeWaveGoals() {
@@ -88,7 +96,12 @@ class WaveSystem {
     }
     
     startWave() {
-        if (this.isWaveActive) return;
+        console.log(`[DEBUG] startWave called - currentWave: ${this.currentWave}, isWaveActive: ${this.isWaveActive}`);
+        
+        if (this.isWaveActive) {
+            console.log(`[DEBUG] Wave already active, returning`);
+            return;
+        }
         
         this.isWaveActive = true;
         this.waveCompleted = false;
@@ -100,13 +113,18 @@ class WaveSystem {
         this.enemiesInWave = waveGoal.enemyCount;
         this.waveDuration = waveGoal.timeLimit;
         
-        console.log(`Wave ${this.currentWave} started! Target: ${this.enemiesInWave} enemies`);
+        console.log(`[DEBUG] Wave ${this.currentWave} started! Target: ${this.enemiesInWave} enemies, Duration: ${this.waveDuration}ms`);
+        console.log(`[DEBUG] Wave goal:`, waveGoal);
     }
     
     update(deltaTime, currentEnemies, game) {
+        console.log(`[DEBUG] WaveSystem.update - isWaveActive: ${this.isWaveActive}, currentWave: ${this.currentWave}`);
+        
         if (!this.isWaveActive) {
-            // 检查是否可以开始下一波
-            if (Date.now() - this.lastWaveEndTime > this.betweenWaveTime) {
+            console.log(`[DEBUG] Wave not active - currentWave: ${this.currentWave}, lastWaveEndTime: ${this.lastWaveEndTime}`);
+            // 检查是否可以开始下一波（仅在非第一波时检查间隔时间）
+            if (this.currentWave > 1 && Date.now() - this.lastWaveEndTime > this.betweenWaveTime) {
+                console.log(`[DEBUG] Starting next wave`);
                 this.startWave();
             }
             return [];
@@ -116,22 +134,32 @@ class WaveSystem {
         const currentTime = Date.now();
         const waveElapsed = currentTime - this.waveStartTime;
         
+        console.log(`[DEBUG] Wave active - elapsed: ${waveElapsed}ms, enemies: ${currentEnemies.length}, spawnTimer: ${this.spawnTimer}`);
+        
         // 检查波次完成条件
         if (this.checkWaveCompletion(currentEnemies, waveElapsed)) {
+            console.log(`[DEBUG] Wave completion detected`);
             this.completeWave(game);
             return newEnemies;
         }
         
         // 生成敌人
         this.spawnTimer += deltaTime;
+        console.log(`[DEBUG] Spawn check - timer: ${this.spawnTimer}, interval: ${this.spawnInterval}, enemies: ${currentEnemies.length}/${this.maxEnemiesOnScreen}`);
+        
         if (this.spawnTimer >= this.spawnInterval && currentEnemies.length < this.maxEnemiesOnScreen) {
+            console.log(`[DEBUG] Attempting to spawn enemy`);
             const enemy = this.spawnEnemy();
             if (enemy) {
+                console.log(`[DEBUG] Enemy spawned successfully:`, enemy);
                 newEnemies.push(enemy);
                 this.spawnTimer = 0;
+            } else {
+                console.log(`[DEBUG] Enemy spawn failed`);
             }
         }
         
+        console.log(`[DEBUG] Returning ${newEnemies.length} new enemies`);
         return newEnemies;
     }
     
@@ -227,30 +255,43 @@ class WaveSystem {
     }
     
     spawnEnemy() {
+        console.log(`[DEBUG] spawnEnemy called - enemiesKilled: ${this.enemiesKilled}, target: ${this.waveGoals[this.currentWave].enemyCount}`);
+        
         if (this.enemiesKilled >= this.waveGoals[this.currentWave].enemyCount) {
+            console.log(`[DEBUG] Already spawned enough enemies for this wave`);
             return null; // 已经生成足够的敌人
         }
         
         const waveGoal = this.waveGoals[this.currentWave];
         const enemyTypes = waveGoal.enemyTypes;
         
+        console.log(`[DEBUG] Wave goal:`, waveGoal);
+        console.log(`[DEBUG] Available enemy types:`, enemyTypes);
+        
         // 选择敌人类型
         let enemyType;
         if (this.bossWaves.includes(this.currentWave) && this.enemiesKilled === waveGoal.enemyCount - 1) {
             // 最后一个敌人是Boss
             enemyType = 'simple_boss';
+            console.log(`[DEBUG] Spawning boss enemy`);
         } else {
             enemyType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+            console.log(`[DEBUG] Selected enemy type: ${enemyType}`);
         }
         
         // 生成位置
         const spawnPosition = this.getSpawnPosition();
+        console.log(`[DEBUG] Spawn position:`, spawnPosition);
         
         // 使用敌人工厂创建敌人
+        console.log(`[DEBUG] EnemyFactory available:`, typeof EnemyFactory !== 'undefined');
         if (typeof EnemyFactory !== 'undefined') {
-            return EnemyFactory.createEnemy(enemyType, spawnPosition.x, spawnPosition.y);
+            const enemy = EnemyFactory.createEnemy(enemyType, spawnPosition.x, spawnPosition.y);
+            console.log(`[DEBUG] Enemy created:`, enemy);
+            return enemy;
         }
         
+        console.log(`[DEBUG] EnemyFactory not available, returning null`);
         return null;
     }
     

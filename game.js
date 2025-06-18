@@ -202,8 +202,7 @@ class Game {
         this.wave = 1;
         this.killCount = 0;
         
-        this.enemySpawnTimer = 0;
-        this.enemySpawnInterval = CONFIG.ENEMY.SPAWN_INTERVAL;
+        // 旧的敌人生成逻辑已移除，现在使用WaveSystem统一管理
         this.powerupSpawnTimer = 0;
         this.powerupSpawnInterval = 600; // 10秒
         
@@ -220,7 +219,7 @@ class Game {
         this.bossWave = 5; // 第5波出现Boss
         
         // 波次系统
-        this.waveSystem = new WaveSystem();
+        this.waveSystem = new WaveSystem(true); // 启用自动开始
         this.enemyBullets = []; // 敌人子弹数组
         
         // UI面板状态
@@ -575,16 +574,16 @@ class Game {
             }
         }
         
-        // 生成敌人
-        this.enemySpawnTimer++;
-        if (this.enemySpawnTimer >= this.enemySpawnInterval) {
-            this.spawnEnemy();
-            this.enemySpawnTimer = 0;
-            // 随着时间推移，敌人生成速度加快
-            if (this.enemySpawnInterval > 30) {
-                this.enemySpawnInterval -= 0.5;
-            }
-        }
+        // 敌人生成现在由WaveSystem统一管理
+        console.log(`[DEBUG] Calling waveSystem.update`);
+        const newEnemies = this.waveSystem.update(deltaTime, this.enemies, this);
+        console.log(`[DEBUG] WaveSystem returned ${newEnemies.length} new enemies`);
+        
+        // 添加新生成的敌人到游戏中
+        newEnemies.forEach(enemy => {
+            console.log(`[DEBUG] Adding enemy to game:`, enemy);
+            this.enemies.push(enemy);
+        });
         
         // 生成道具
         this.powerupSpawnTimer++;
@@ -976,11 +975,7 @@ class Game {
     nextWave() {
         this.wave++;
         
-        // 增加敌人生成速度
-        this.enemySpawnInterval = Math.max(
-            CONFIG.ENEMY.MIN_SPAWN_INTERVAL,
-            this.enemySpawnInterval - CONFIG.ENEMY.SPAWN_ACCELERATION * 5
-        );
+        // 敌人生成速度现在由WaveSystem管理
         
         // 显示波次信息
         this.showWaveMessage();
