@@ -313,7 +313,25 @@ class AchievementSystem {
             case 'skillUsed':
                 this.recordSkillUsage(data);
                 break;
+            case 'coinCollected':
+                this.recordCoinCollected(data);
+                break;
+            case 'upgrade':
+                this.recordUpgrade(data);
+                break;
         }
+    }
+    
+    // 记录金币收集
+    recordCoinCollected(value) {
+        // 可以在这里添加金币相关的成就逻辑
+        // 例如：收集一定数量的金币解锁成就
+    }
+    
+    // 记录升级
+    recordUpgrade(upgradeCount) {
+        // 可以在这里添加升级相关的成就逻辑
+        // 例如：进行一定次数升级解锁成就
     }
     
     // 记录技能使用

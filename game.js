@@ -194,6 +194,9 @@ class Game {
         this.bosses = [];
         this.npcs = [];
         
+        // 金币系统
+        this.coinSystem = new CoinSystem();
+        
         this.keys = {};
         this.mouse = { x: 0, y: 0 };
         
@@ -339,6 +342,13 @@ class Game {
         if (this.gameMode === 'ESCORT') {
             this.npcs = [new NPC(100, 100, this.width - 100, this.height - 100)];
         }
+        
+        // 初始化金币系统 - 清空现有金币和升级站
+        this.coinSystem.clear();
+        this.coinSystem.upgradeStations = [];
+        
+        // 在地图上生成升级站
+        this.generateUpgradeStations();
     }
     
     generateRandomObstacles() {
@@ -374,6 +384,51 @@ class Game {
             if (validPosition) {
                 const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
                 this.obstacles.push(new Obstacle(x, y, width, height, type));
+            }
+        }
+    }
+    
+    generateUpgradeStations() {
+        // 在地图上生成2-3个升级站
+        const stationCount = 2 + Math.floor(Math.random() * 2);
+        
+        for (let i = 0; i < stationCount; i++) {
+            let x, y;
+            let attempts = 0;
+            let validPosition = false;
+            
+            // 尝试找到一个合适的位置
+            while (!validPosition && attempts < 50) {
+                x = Math.random() * (this.width - 60) + 30;
+                y = Math.random() * (this.height - 60) + 30;
+                
+                // 确保不与玩家起始位置冲突
+                const playerStartX = this.width / 2;
+                const playerStartY = this.height / 2;
+                const distanceToPlayer = Math.sqrt(
+                    (x - playerStartX) ** 2 + (y - playerStartY) ** 2
+                );
+                
+                // 确保不与障碍物冲突
+                let conflictsWithObstacle = false;
+                for (const obstacle of this.obstacles) {
+                    if (x < obstacle.x + obstacle.width + 20 &&
+                        x + 30 > obstacle.x - 20 &&
+                        y < obstacle.y + obstacle.height + 20 &&
+                        y + 30 > obstacle.y - 20) {
+                        conflictsWithObstacle = true;
+                        break;
+                    }
+                }
+                
+                if (distanceToPlayer > 80 && !conflictsWithObstacle) {
+                    validPosition = true;
+                }
+                attempts++;
+            }
+            
+            if (validPosition) {
+                this.coinSystem.addUpgradeStation(x, y);
             }
         }
     }
@@ -693,6 +748,9 @@ class Game {
             powerup.update();
         });
         
+        // 更新金币系统
+        this.coinSystem.update(this.player);
+        
         // 碰撞检测
         this.checkCollisions();
         
@@ -764,6 +822,14 @@ class Game {
                     if (enemy.health <= 0) {
                         // 通知波次系统敌人被击杀
                         this.waveSystem.onEnemyKilled(enemy);
+                        
+                        // 敌人死亡时掉落金币
+                        const coinCount = 1 + Math.floor(Math.random() * 3); // 掉落1-3个金币
+                        for (let k = 0; k < coinCount; k++) {
+                            const offsetX = (Math.random() - 0.5) * 40;
+                            const offsetY = (Math.random() - 0.5) * 40;
+                            this.coinSystem.dropCoin(enemy.x + offsetX, enemy.y + offsetY);
+                        }
                         
                         // 移除敌人
                         this.enemies.splice(j, 1);
@@ -1194,6 +1260,9 @@ class Game {
             powerup.render(this.ctx);
         });
         
+        // 渲染金币系统
+        this.coinSystem.render(this.ctx);
+        
         // 绘制自动瞄准线
         this.drawAutoAimLine();
         
@@ -1503,6 +1572,10 @@ class Player {
         this.shootCooldown = 0;
         this.invulnerable = 0; // 无敌时间
         this.isInvincible = false; // 技能无敌状态
+        
+        // 金币系统
+        this.coins = 0;
+        this.baseAttackPower = 1; // 基础攻击力
         
         // 状态效果
         this.speedBoost = { active: false, multiplier: 1, duration: 0 };

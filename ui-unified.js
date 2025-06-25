@@ -183,6 +183,14 @@ class UnifiedUIManager {
                 <span class="stat-label">技能点:</span>
                 <span class="stat-value" id="ui-skillPoints">0</span>
             </div>
+            <div class="stat-item">
+                <span class="stat-label">金币:</span>
+                <span class="stat-value" id="ui-coins">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">攻击力:</span>
+                <span class="stat-value" id="ui-attackPower">1</span>
+            </div>
         `;
     }
     
@@ -432,7 +440,9 @@ class UnifiedUIManager {
             kills: this.game.killCount || 0,
             weapon: this.game.currentWeapon || '手枪',
             enemyCount: this.game.enemies?.length || 0,
-            skillPoints: this.game.player?.skillSystem?.skillPoints || 0
+            skillPoints: this.game.player?.skillSystem?.skillPoints || 0,
+            coins: this.game.player?.coins || 0,
+            attackPower: this.game.player?.baseAttackPower || 1
         };
         
         // 更新游戏信息面板内容
@@ -489,6 +499,14 @@ class UnifiedUIManager {
                      <div class="stat-item">
                          <span class="stat-label">技能点:</span>
                          <span class="stat-value">${data.skillPoints || 0}</span>
+                     </div>
+                     <div class="stat-item">
+                         <span class="stat-label">金币:</span>
+                         <span class="stat-value" style="color: #feca57">${data.coins || 0}</span>
+                     </div>
+                     <div class="stat-item">
+                         <span class="stat-label">攻击力:</span>
+                         <span class="stat-value" style="color: #ff6b6b">${data.attackPower || 1}</span>
                      </div>
                  `;
             }

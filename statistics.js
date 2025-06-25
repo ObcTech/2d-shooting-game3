@@ -214,6 +214,19 @@ class StatisticsSystem {
         this.stats.perfectLevels++;
     }
     
+    // 记录金币收集
+    recordCoinCollected(value) {
+        this.currentSession.coinsCollected = (this.currentSession.coinsCollected || 0) + 1;
+        this.stats.totalCoinsCollected = (this.stats.totalCoinsCollected || 0) + 1;
+        this.stats.totalCoinValue = (this.stats.totalCoinValue || 0) + value;
+    }
+    
+    // 记录升级
+    recordUpgrade() {
+        this.currentSession.upgradesPurchased = (this.currentSession.upgradesPurchased || 0) + 1;
+        this.stats.totalUpgrades = (this.stats.totalUpgrades || 0) + 1;
+    }
+    
     // 更新玩家位置（计算移动距离）
     updatePlayerPosition(x, y) {
         if (this.currentSession.lastPosition.x !== 0 || this.currentSession.lastPosition.y !== 0) {
