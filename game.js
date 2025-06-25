@@ -252,6 +252,11 @@ class Game {
         this.unifiedUI = new UnifiedUIManager(this);
         window.unifiedUI = this.unifiedUI; // 全局访问
         
+        // 初始化环境特效系统
+        if (window.EnvironmentEffects) {
+            this.environmentEffects = new EnvironmentEffects(this.canvas);
+        }
+        
         // 测试调试器
         this.gameTester = new GameTester(this);
         window.gameTester = this.gameTester; // 全局访问，便于调试
@@ -663,6 +668,26 @@ class Game {
             particle.update();
         });
         
+        // 更新增强粒子系统
+        if (window.enhancedParticles) {
+            window.enhancedParticles.update(deltaTime);
+        }
+        
+        // 更新屏幕震动
+        if (window.screenShake) {
+            window.screenShake.update(deltaTime);
+        }
+        
+        // 更新伤害数字
+        if (window.damageNumbers) {
+            window.damageNumbers.update(deltaTime);
+        }
+        
+        // 更新环境特效
+        if (this.environmentEffects) {
+            this.environmentEffects.update(deltaTime);
+        }
+        
         // 更新道具
         this.powerups.forEach(powerup => {
             powerup.update();
@@ -687,6 +712,10 @@ class Game {
             const bullet = this.bullets[i];
             for (let obstacle of this.obstacles) {
                 if (this.isCollidingWithRect(bullet, obstacle)) {
+                    // 创建撞击特效
+                    if (window.weaponEffects) {
+                        window.weaponEffects.createImpact(bullet.x, bullet.y, bullet.weaponType);
+                    }
                     this.bullets.splice(i, 1);
                     this.createExplosion(bullet.x, bullet.y, '#95a5a6');
                     break;
@@ -700,6 +729,21 @@ class Game {
             for (let j = this.enemies.length - 1; j >= 0; j--) {
                 const enemy = this.enemies[j];
                 if (this.isColliding(bullet, enemy)) {
+                    // 创建撞击特效
+                    if (window.weaponEffects) {
+                        window.weaponEffects.createImpact(bullet.x, bullet.y, bullet.weaponType);
+                    }
+                    
+                    // 显示伤害数字
+                    if (window.damageNumbers) {
+                        window.damageNumbers.show(enemy.x, enemy.y, bullet.damage);
+                    }
+                    
+                    // 屏幕震动
+                    if (window.screenShake) {
+                        window.screenShake.shake(2, 100);
+                    }
+                    
                     // 创建爆炸粒子效果
                     this.createExplosion(enemy.x, enemy.y, '#ff6b6b');
                     
@@ -973,12 +1017,22 @@ class Game {
     }
     
     createExplosion(x, y, color = '#ff6b6b') {
-        const baseParticleCount = Math.random() * 6 + 8;
-        const particleCount = Math.floor(baseParticleCount * this.particleQuality);
-        for (let i = 0; i < particleCount; i++) {
-            const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.5;
-            const speed = Math.random() * 4 + 2;
-            this.particles.push(new Particle(x, y, angle, speed, color));
+        // 使用增强粒子系统创建爆炸效果
+        if (window.enhancedParticles) {
+            window.enhancedParticles.createExplosion(x, y, {
+                color: color,
+                particleCount: 12,
+                intensity: 1.0
+            });
+        } else {
+            // 回退到原始粒子系统
+            const baseParticleCount = Math.random() * 6 + 8;
+            const particleCount = Math.floor(baseParticleCount * this.particleQuality);
+            for (let i = 0; i < particleCount; i++) {
+                const angle = (Math.PI * 2 * i) / particleCount + Math.random() * 0.5;
+                const speed = Math.random() * 4 + 2;
+                this.particles.push(new Particle(x, y, angle, speed, color));
+            }
         }
     }
     
@@ -1080,6 +1134,13 @@ class Game {
     }
     
     render() {
+        // 应用屏幕震动效果
+        this.ctx.save();
+        if (window.screenShake) {
+            const shake = window.screenShake.getOffset();
+            this.ctx.translate(shake.x, shake.y);
+        }
+        
         // 清空画布并绘制关卡背景
         this.drawLevelBackground();
         
@@ -1119,6 +1180,16 @@ class Game {
             particle.render(this.ctx);
         });
         
+        // 渲染增强粒子效果
+        if (window.enhancedParticles) {
+            window.enhancedParticles.render(this.ctx);
+        }
+        
+        // 渲染伤害数字
+        if (window.damageNumbers) {
+            window.damageNumbers.render(this.ctx);
+        }
+        
         this.powerups.forEach(powerup => {
             powerup.render(this.ctx);
         });
@@ -1144,6 +1215,9 @@ class Game {
         // 渲染UI改进功能
         this.uiManager.renderDebugInfo(this.ctx, this);
         this.uiManager.renderFPS(this.ctx, this.fps);
+        
+        // 恢复画布状态（屏幕震动效果）
+        this.ctx.restore();
     }
     
     drawLevelBackground() {
@@ -1154,21 +1228,29 @@ class Game {
     
     drawGrid() {
         const levelConfig = CONFIG.LEVELS[this.currentLevel];
-        this.ctx.strokeStyle = levelConfig.gridColor;
-        this.ctx.lineWidth = 1;
         
-        for (let x = 0; x < this.width; x += 50) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(x, 0);
-            this.ctx.lineTo(x, this.height);
-            this.ctx.stroke();
-        }
-        
-        for (let y = 0; y < this.height; y += 50) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(0, y);
-            this.ctx.lineTo(this.width, y);
-            this.ctx.stroke();
+        // 使用环境特效系统渲染增强网格
+        if (this.environmentEffects) {
+            this.environmentEffects.renderEnhancedGrid(levelConfig);
+            this.environmentEffects.renderBackgroundParticles();
+        } else {
+            // 回退到基础网格
+            this.ctx.strokeStyle = levelConfig.gridColor;
+            this.ctx.lineWidth = 1;
+            
+            for (let x = 0; x < this.width; x += 50) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, 0);
+                this.ctx.lineTo(x, this.height);
+                this.ctx.stroke();
+            }
+            
+            for (let y = 0; y < this.height; y += 50) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(0, y);
+                this.ctx.lineTo(this.width, y);
+                this.ctx.stroke();
+            }
         }
     }
     
@@ -1839,6 +1921,11 @@ class Bullet {
         this.vy = Math.sin(angle) * this.speed;
         this.trail = [];
         this.life = 0;
+        
+        // 创建武器特效
+        if (window.weaponEffects) {
+            window.weaponEffects.createMuzzleFlash(x, y, angle, weaponType);
+        }
     }
     
     update() {
@@ -1846,6 +1933,11 @@ class Bullet {
         this.trail.push({ x: this.x, y: this.y });
         if (this.trail.length > 5) {
             this.trail.shift();
+        }
+        
+        // 创建轨迹特效
+        if (window.weaponEffects && this.life % 2 === 0) {
+            window.weaponEffects.createTrail(this.x, this.y, this.weaponType);
         }
         
         this.x += this.vx;
