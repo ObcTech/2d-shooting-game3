@@ -253,10 +253,8 @@ class UIManager {
     closeAllPanels() {
         document.getElementById('settingsPanel').style.display = 'none';
         // 关闭其他面板
-        if (this.game) {
-            this.game.showSkillPanel = false;
-            this.game.showAchievementPanel = false;
-            this.game.showStatisticsPanel = false;
+        if (this.game && this.game.unifiedUI) {
+            this.game.unifiedUI.hideAllPanels();
         }
     }
 

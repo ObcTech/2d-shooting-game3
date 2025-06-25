@@ -31,136 +31,12 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
         }
         
-        .ui-panel {
-            position: absolute;
-            top: 30px;
-            left: 30px;
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
-        }
-        
-        .stat {
-            margin-bottom: 8px;
-            background: rgba(0, 0, 0, 0.6);
-            padding: 8px 12px;
-            border-radius: 8px;
-            border-left: 4px solid #4ecdc4;
-            display: flex;
-            justify-content: space-between;
-            min-width: 120px;
-        }
-        
-        .label {
-            color: #b8b8b8;
-        }
-        
-        .value {
-            color: #4ecdc4;
-            font-weight: bold;
-        }
-        
-        .instructions {
-            position: absolute;
-            bottom: 30px;
-            right: 30px;
-            color: white;
-            font-size: 13px;
-            text-align: left;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
-            background: rgba(0, 0, 0, 0.6);
-            padding: 15px;
-            border-radius: 10px;
-            border-right: 4px solid #feca57;
-            max-width: 280px;
-        }
-        
-        .instructions h3 {
-            margin: 0 0 10px 0;
-            color: #feca57;
-            font-size: 16px;
-        }
-        
-        .instructions p {
-            margin: 5px 0;
-            line-height: 1.4;
-        }
-        
-        .instructions strong {
-            color: #4ecdc4;
-        }
+        /* 简化的样式，UI组件现在由统一UI系统管理 */
     </style>
 </head>
 <body>
     <div id="gameContainer">
         <canvas id="gameCanvas" width="800" height="600"></canvas>
-        <div class="ui-panel">
-            <div class="stat">
-                <span class="label">生命值:</span>
-                <span id="health" class="value">100</span>
-            </div>
-            <div class="stat">
-                <span class="label">得分:</span>
-                <span id="score" class="value">0</span>
-            </div>
-            <div class="stat">
-                <span class="label">波次:</span>
-                <span id="wave" class="value">1</span>
-            </div>
-            <div class="stat">
-                <span class="label">击杀:</span>
-                <span id="kills" class="value">0</span>
-            </div>
-            <div class="stat">
-                <span class="label">武器:</span>
-                <span class="value" id="weapon">手枪</span>
-            </div>
-            <div class="stat">
-                <span class="label">敌人数量:</span>
-                <span id="enemyCount" class="value">0</span>
-            </div>
-        </div>
-        
-        <div id="controls" style="position: absolute; top: 10px; left: 10px; color: white; font-size: 12px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px;">
-            <div><strong>控制说明:</strong></div>
-            <div>WASD - 移动</div>
-            <div>鼠标 - 瞄准射击</div>
-            <div>F1 - 设置面板</div>
-            <div>F2 - 显示FPS</div>
-            <div>F3 - 调试信息</div>
-            <div>ESC - 关闭面板</div>
-            <div style="margin-top: 10px;">
-                <button onclick="gameTester.runAutomatedTests()" style="margin: 2px; padding: 5px; font-size: 10px;">运行测试</button>
-                <button onclick="gameTester.runStressTest(10000)" style="margin: 2px; padding: 5px; font-size: 10px;">压力测试</button>
-                <button onclick="console.log(gameTester.getDiagnostics())" style="margin: 2px; padding: 5px; font-size: 10px;">诊断信息</button>
-            </div>
-        </div>
-        <div class="instructions">
-            <h3>🎮 游戏说明</h3>
-            <p><strong>控制方式:</strong> WASD 移动，自动瞄准射击，1-4键切换武器</p>
-            <p><strong>武器系统:</strong></p>
-            <ul>
-                <li>🔫 <strong>手枪</strong> - 基础武器，射速中等</li>
-                <li>💥 <strong>散弹枪</strong> - 一次发射5发子弹，近距离威力大</li>
-                <li>⚡ <strong>激光枪</strong> - 高伤害，射速快</li>
-                <li>🚀 <strong>火箭筒</strong> - 爆炸伤害，范围攻击</li>
-            </ul>
-            <p><strong>道具系统:</strong></p>
-            <ul>
-                <li>💚 <strong>生命包</strong> - 恢复30点生命值</li>
-                <li>⚡ <strong>武器升级</strong> - 解锁下一级武器</li>
-                <li>💨 <strong>速度提升</strong> - 临时提升移动速度</li>
-                <li>🛡️ <strong>护盾</strong> - 临时免疫伤害</li>
-            </ul>
-            <p><strong>敌人类型:</strong></p>
-            <ul>
-                <li>🔴 <strong>普通敌人</strong> - 基础速度和生命值</li>
-                <li>🟠 <strong>快速敌人</strong> - 移动速度快，体积小</li>
-                <li>🟣 <strong>坦克敌人</strong> - 移动缓慢，生命值高</li>
-            </ul>
-            <p><strong>波次系统:</strong> 每击杀10个敌人进入下一波，难度逐渐增加</p>
-        </div>
     </div>
     
     <script src="obstacle.js"></script>
@@ -171,6 +47,7 @@
     <script src="skills.js"></script>
     <script src="performance-optimization.js"></script>
     <script src="ui-improvements.js"></script>
+    <script src="ui-unified.js"></script>
     <script src="test-debug.js"></script>
     <script src="enemy.js"></script>
     <script src="wave.js"></script>

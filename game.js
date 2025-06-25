@@ -222,10 +222,7 @@ class Game {
         this.waveSystem = new WaveSystem(true); // 启用自动开始
         this.enemyBullets = []; // 敌人子弹数组
         
-        // UI面板状态
-        this.showSkillPanel = false;
-        this.showAchievementPanel = false;
-        this.showStatisticsPanel = false;
+        // UI相关
         this.lastFrameTime = 0;
         
         // 初始化关卡
@@ -250,6 +247,10 @@ class Game {
         // UI管理器
         this.uiManager = new UIManager(this);
         window.uiManager = this.uiManager; // 全局访问
+        
+        // 统一UI系统
+        this.unifiedUI = new UnifiedUIManager(this);
+        window.unifiedUI = this.unifiedUI; // 全局访问
         
         // 测试调试器
         this.gameTester = new GameTester(this);
@@ -457,11 +458,20 @@ class Game {
             
             // UI面板切换
             if (e.key.toLowerCase() === 'k') {
-                this.showSkillPanel = !this.showSkillPanel;
+                this.unifiedUI.togglePanel('skills');
             } else if (e.key.toLowerCase() === 'j') {
-                this.showAchievementPanel = !this.showAchievementPanel;
+                this.unifiedUI.togglePanel('achievements');
             } else if (e.key.toLowerCase() === 'l') {
-                this.showStatisticsPanel = !this.showStatisticsPanel;
+                this.unifiedUI.togglePanel('statistics');
+            }
+            
+            // 统一UI系统快捷键
+            if (e.key.toLowerCase() === 'h') {
+                this.unifiedUI.toggleUI();
+            } else if (e.key.toLowerCase() === 'i') {
+                this.unifiedUI.togglePanel('gameInfo');
+            } else if (e.key.toLowerCase() === 'c') {
+                this.unifiedUI.togglePanel('controls');
             }
             
             // 技能升级快捷键 (Shift + 数字)
@@ -1028,26 +1038,22 @@ class Game {
     }
     
     updateUI() {
-        document.getElementById('health').textContent = Math.max(0, this.player.health);
-        document.getElementById('score').textContent = this.score;
-        document.getElementById('enemyCount').textContent = this.enemies.length;
-        
         // 同步波次系统的波次到游戏波次
         this.wave = this.waveSystem.currentWave;
         
-        // 添加波次和击杀数显示
-        const waveElement = document.getElementById('wave');
-        const killElement = document.getElementById('kills');
-        
-        if (waveElement) waveElement.textContent = this.wave;
-        if (killElement) killElement.textContent = this.killCount;
-        
-        // 显示当前武器
-        const weaponElement = document.getElementById('weapon');
-        if (weaponElement) {
-            const weaponConfig = CONFIG.WEAPONS[this.currentWeapon];
-            weaponElement.textContent = weaponConfig.name;
+        // 更新统一UI系统的游戏信息
+        if (this.unifiedUI) {
+            this.unifiedUI.updateGameInfo({
+                health: Math.max(0, this.player.health),
+                score: this.score,
+                wave: this.wave,
+                kills: this.killCount,
+                weapon: CONFIG.WEAPONS[this.currentWeapon].name,
+                enemyCount: this.enemies.length
+            });
         }
+        
+        // 武器信息已通过统一UI系统更新
     }
     
     calculateFPS(currentTime) {
@@ -1129,28 +1135,11 @@ class Game {
         // 绘制任务目标
         this.drawMissionObjective();
         
-        // 绘制高级系统UI
-        this.renderAdvancedSystemsUI();
+        // 使用统一UI系统渲染所有UI组件
+        this.unifiedUI.render(this.ctx);
         
-        // 绘制技能系统UI
-        this.player.skillSystem.renderSkillUI(this.ctx, {width: this.width, height: this.height});
-        
-        // 绘制成就通知
+        // 保留成就通知（动态显示）
         this.player.achievementSystem.renderNotifications(this.ctx, this.width, this.height);
-        
-        // 绘制统计系统HUD
-        this.player.statisticsSystem.renderHUD(this.ctx, this.width, this.height);
-        
-        // 绘制面板
-        if (this.showSkillPanel) {
-            this.renderSkillPanel();
-        }
-        if (this.showAchievementPanel) {
-            this.player.achievementSystem.renderPanel(this.ctx, this.width, this.height);
-        }
-        if (this.showStatisticsPanel) {
-            this.player.statisticsSystem.renderPanel(this.ctx, this.width, this.height);
-        }
         
         // 渲染UI改进功能
         this.uiManager.renderDebugInfo(this.ctx, this);
