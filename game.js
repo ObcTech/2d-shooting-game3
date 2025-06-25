@@ -260,6 +260,12 @@ class Game {
             this.environmentEffects = new EnvironmentEffects(this.canvas);
         }
         
+        // 初始化视觉特效增强系统
+        if (window.VisualEffectsEnhanced) {
+            this.visualEffectsEnhanced = new VisualEffectsEnhanced(this.canvas);
+            window.visualEffectsEnhanced = this.visualEffectsEnhanced; // 全局访问
+        }
+        
         // 测试调试器
         this.gameTester = new GameTester(this);
         window.gameTester = this.gameTester; // 全局访问，便于调试
@@ -1100,6 +1106,11 @@ class Game {
                 this.particles.push(new Particle(x, y, angle, speed, color));
             }
         }
+        
+        // 添加爆炸光效
+        if (this.visualEffectsEnhanced) {
+            this.visualEffectsEnhanced.addExplosionLight(x, y, color);
+        }
     }
     
     nextWave() {
@@ -1284,6 +1295,11 @@ class Game {
         // 渲染UI改进功能
         this.uiManager.renderDebugInfo(this.ctx, this);
         this.uiManager.renderFPS(this.ctx, this.fps);
+        
+        // 应用视觉特效增强系统的后处理效果
+        if (this.visualEffectsEnhanced) {
+            this.visualEffectsEnhanced.applyPostProcessing(this.ctx, this.canvas);
+        }
         
         // 恢复画布状态（屏幕震动效果）
         this.ctx.restore();
@@ -1544,7 +1560,17 @@ class Game {
         const frameStartTime = performance.now();
         
         this.calculateFPS(currentTime);
+        
+        // 计算deltaTime
+        const deltaTime = this.lastFrameTime ? currentTime - this.lastFrameTime : 16.67;
+        
         this.update();
+        
+        // 更新视觉特效增强系统
+        if (this.visualEffectsEnhanced) {
+            this.visualEffectsEnhanced.update(deltaTime);
+        }
+        
         this.render();
         
         // 性能监控和优化
@@ -1692,7 +1718,13 @@ class Player {
             }
         }
         
-        if (game) game.playSound('shoot');
+        if (game) {
+            game.playSound('shoot');
+            // 添加枪口闪光效果
+            if (game.visualEffectsEnhanced) {
+                game.visualEffectsEnhanced.addMuzzleFlash(this.x, this.y, angle, game.currentWeapon);
+            }
+        }
     }
     
     autoShoot(targetX, targetY, bullets, game) {
@@ -1719,7 +1751,13 @@ class Player {
         
         this.shootCooldown = weaponConfig.cooldown;
         
-        if (game) game.playSound('shoot');
+        if (game) {
+            game.playSound('shoot');
+            // 添加枪口闪光效果
+            if (game.visualEffectsEnhanced) {
+                game.visualEffectsEnhanced.addMuzzleFlash(this.x, this.y, baseAngle, game.currentWeapon);
+            }
+        }
     }
     
     takeDamage(damage) {
@@ -1730,6 +1768,14 @@ class Player {
         
         this.health -= actualDamage;
         this.invulnerable = 60; // 1秒无敌时间
+        
+        // 添加受伤视觉特效
+        if (window.game && window.game.visualEffectsEnhanced) {
+            // 屏幕震动
+            window.game.visualEffectsEnhanced.addScreenShake(actualDamage * 2, 200);
+            // 红色伤害滤镜
+            window.game.visualEffectsEnhanced.addColorFilter('damage', 300);
+        }
         
         // 记录伤害统计
         this.statisticsSystem.recordDamageTaken(actualDamage);

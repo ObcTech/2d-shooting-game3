@@ -162,6 +162,102 @@ const VISUAL_CONFIG = {
         }
     },
     
+    // 视觉特效增强配置
+    ENHANCED_EFFECTS: {
+        // 光照系统
+        LIGHTING: {
+            AMBIENT_LIGHT: {
+                r: 0.1,
+                g: 0.1,
+                b: 0.15,
+                intensity: 0.3
+            },
+            
+            MUZZLE_FLASH: {
+                radius: { min: 20, max: 50 },
+                color: { r: 1, g: 0.8, b: 0.6 },
+                intensity: 1.5,
+                duration: 150,
+                flicker: true
+            },
+            
+            EXPLOSION: {
+                radius: { min: 60, max: 120 },
+                color: { r: 1, g: 0.6, b: 0.2 },
+                intensity: 2.0,
+                duration: 300,
+                flicker: true
+            },
+            
+            WEAPON_GLOW: {
+                radius: 15,
+                color: { r: 0.4, g: 0.8, b: 1.0 },
+                intensity: 0.8,
+                pulse: true
+            }
+        },
+        
+        // 后处理效果
+        POST_PROCESSING: {
+            SCREEN_SHAKE: {
+                max_intensity: 10,
+                default_duration: 300,
+                decay_rate: 0.9
+            },
+            
+            COLOR_FILTERS: {
+                DAMAGE: {
+                    r: 1, g: 0.3, b: 0.3,
+                    alpha: 0.3,
+                    duration: 200
+                },
+                
+                HEAL: {
+                    r: 0.3, g: 1, b: 0.3,
+                    alpha: 0.2,
+                    duration: 300
+                },
+                
+                POWERUP: {
+                    r: 0.3, g: 0.3, b: 1,
+                    alpha: 0.15,
+                    duration: 500
+                }
+            },
+            
+            BLUR: {
+                max_radius: 5,
+                fade_speed: 0.1
+            },
+            
+            CHROMATIC_ABERRATION: {
+                max_intensity: 3,
+                color_separation: 2
+            }
+        },
+        
+        // 特殊效果
+        SPECIAL_EFFECTS: {
+            SLOW_MOTION: {
+                time_scale: 0.3,
+                duration: 1000,
+                ease_in: 200,
+                ease_out: 300
+            },
+            
+            FREEZE_FRAME: {
+                duration: 100,
+                flash_intensity: 0.8
+            },
+            
+            BULLET_TIME: {
+                time_scale: 0.1,
+                duration: 2000,
+                particle_multiplier: 2.0
+            }
+        }
+    },
+    
     // 性能配置
     PERFORMANCE: {
         PARTICLE_QUALITY: {
@@ -181,6 +277,25 @@ const VISUAL_CONFIG = {
             HIGH_DETAIL: 0,
             MEDIUM_DETAIL: 1,
             LOW_DETAIL: 2
+        },
+        
+        // 视觉特效性能设置
+        ENHANCED_EFFECTS_PERFORMANCE: {
+            LOW: {
+                lighting: false,
+                post_processing: false,
+                particle_count_multiplier: 0.3
+            },
+            MEDIUM: {
+                lighting: true,
+                post_processing: true,
+                particle_count_multiplier: 0.7
+            },
+            HIGH: {
+                lighting: true,
+                post_processing: true,
+                particle_count_multiplier: 1.0
+            }
         }
     }
 };
