@@ -266,6 +266,44 @@ class Game {
             window.visualEffectsEnhanced = this.visualEffectsEnhanced; // 全局访问
         }
         
+        // 初始化UI主题系统
+        if (window.UIThemeSystem) {
+            this.uiThemeSystem = new UIThemeSystem();
+            window.uiThemeSystem = this.uiThemeSystem; // 全局访问
+        }
+        
+        // 初始化环境美术系统
+        if (window.EnvironmentArtSystem) {
+            this.environmentArt = new EnvironmentArtSystem(this.canvas);
+            window.environmentArt = this.environmentArt; // 全局访问
+        }
+        
+        // 初始化角色动画系统
+        if (window.AnimatedCharacterRenderer) {
+            this.characterAnimation = new AnimatedCharacterRenderer();
+            window.characterAnimation = this.characterAnimation; // 全局访问
+        }
+        
+        // 初始化音效视觉联动系统
+        if (window.AudioVisualSyncSystem) {
+            this.audioVisualSync = window.audioVisualSync;
+        }
+        
+        // 初始化特效编辑器
+        if (window.effectsEditor) {
+            this.effectsEditor = window.effectsEditor;
+        }
+        
+        // 初始化性能监控面板
+        if (window.performanceMonitor) {
+            this.performanceMonitor = window.performanceMonitor;
+        }
+        
+        // 初始化开发者控制台
+        if (window.developerConsole) {
+            this.developerConsole = window.developerConsole;
+        }
+        
         // 测试调试器
         this.gameTester = new GameTester(this);
         window.gameTester = this.gameTester; // 全局访问，便于调试
@@ -1218,22 +1256,52 @@ class Game {
             this.ctx.translate(shake.x, shake.y);
         }
         
-        // 清空画布并绘制关卡背景
-        this.drawLevelBackground();
-        
-        // 绘制网格背景
-        this.drawGrid();
+        // 渲染环境美术系统背景
+        if (this.environmentArt) {
+            this.environmentArt.render();
+        } else {
+            // 清空画布并绘制关卡背景
+            this.drawLevelBackground();
+            
+            // 绘制网格背景
+            this.drawGrid();
+        }
         
         // 绘制障碍物
         this.obstacles.forEach(obstacle => {
             obstacle.render(this.ctx);
         });
         
-        // 绘制游戏对象
-        this.player.render(this.ctx);
-       // 绘制敌人
+        // 绘制游戏对象（使用角色动画系统）
+        if (this.characterAnimation) {
+            const animationData = this.characterAnimation.updateAnimation(16.67);
+            this.characterAnimation.renderCharacter(
+                this.ctx, 
+                this.player.x, 
+                this.player.y, 
+                this.player.radius, 
+                '#4CAF50', 
+                animationData
+            );
+        } else {
+            this.player.render(this.ctx);
+        }
+        
+        // 绘制敌人（使用角色动画系统）
         this.enemies.forEach(enemy => {
-            enemy.render(this.ctx);
+            if (this.characterAnimation) {
+                // 为每个敌人创建独立的动画实例或使用共享动画
+                this.characterAnimation.renderCharacter(
+                    this.ctx, 
+                    enemy.x, 
+                    enemy.y, 
+                    enemy.radius, 
+                    enemy.color || '#FF5722', 
+                    null // 暂时不使用动画数据
+                );
+            } else {
+                enemy.render(this.ctx);
+            }
         });
         
         // 绘制敌人子弹
@@ -1295,6 +1363,11 @@ class Game {
         // 渲染UI改进功能
         this.uiManager.renderDebugInfo(this.ctx, this);
         this.uiManager.renderFPS(this.ctx, this.fps);
+        
+        // 渲染音效视觉联动效果
+        if (this.audioVisualSync) {
+            this.audioVisualSync.renderAudioVisualization(this.ctx, this.canvas);
+        }
         
         // 应用视觉特效增强系统的后处理效果
         if (this.visualEffectsEnhanced) {
@@ -1571,6 +1644,21 @@ class Game {
             this.visualEffectsEnhanced.update(deltaTime);
         }
         
+        // 更新环境美术系统
+        if (this.environmentArt) {
+            this.environmentArt.update(deltaTime);
+        }
+        
+        // 更新角色动画系统
+        if (this.characterAnimation) {
+            this.characterAnimation.updateAnimation(deltaTime);
+        }
+        
+        // 更新音效视觉联动系统
+        if (this.audioVisualSync) {
+            this.audioVisualSync.update(deltaTime);
+        }
+        
         this.render();
         
         // 性能监控和优化
@@ -1642,6 +1730,21 @@ class Player {
         if (moveX !== 0 && moveY !== 0) {
             moveX *= 0.707; // 1/√2
             moveY *= 0.707;
+        }
+        
+        // 触发移动或待机动画
+        if (window.game && window.game.characterAnimation) {
+            if (moveX !== 0 || moveY !== 0) {
+                // 正在移动
+                if (window.game.characterAnimation.getCurrentState() !== 'move') {
+                    window.game.characterAnimation.changeState('move', 'player');
+                }
+            } else {
+                // 静止状态
+                if (window.game.characterAnimation.getCurrentState() !== 'idle') {
+                    window.game.characterAnimation.changeState('idle', 'player');
+                }
+            }
         }
         
         this.x += moveX;
@@ -1724,6 +1827,10 @@ class Player {
             if (game.visualEffectsEnhanced) {
                 game.visualEffectsEnhanced.addMuzzleFlash(this.x, this.y, angle, game.currentWeapon);
             }
+            // 触发射击动画
+            if (game.characterAnimation) {
+                game.characterAnimation.playAnimation('player_shoot');
+            }
         }
     }
     
@@ -1757,6 +1864,10 @@ class Player {
             if (game.visualEffectsEnhanced) {
                 game.visualEffectsEnhanced.addMuzzleFlash(this.x, this.y, baseAngle, game.currentWeapon);
             }
+            // 触发射击动画
+            if (game.characterAnimation) {
+                game.characterAnimation.playAnimation('player_shoot');
+            }
         }
     }
     
@@ -1775,6 +1886,11 @@ class Player {
             window.game.visualEffectsEnhanced.addScreenShake(actualDamage * 2, 200);
             // 红色伤害滤镜
             window.game.visualEffectsEnhanced.addColorFilter('damage', 300);
+        }
+        
+        // 触发受伤动画
+        if (window.game && window.game.characterAnimation) {
+            window.game.characterAnimation.playAnimation('player_hurt');
         }
         
         // 记录伤害统计
