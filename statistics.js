@@ -54,7 +54,8 @@ class StatisticsSystem {
             obstaclesDestroyed: 0,      // 摧毁的障碍物数量
             distanceTraveled: 0,        // 移动距离（像素）
             perfectLevels: 0,           // 完美通关次数
-            maxKillStreak: 0            // 最大连击数
+            maxKillStreak: 0,           // 最大连击数
+            totalDeaths: 0              // 总死亡次数
         };
         
         // 当前游戏会话数据
@@ -158,6 +159,8 @@ class StatisticsSystem {
         this.currentSession.killStreak++;
         this.currentSession.maxKillStreak = Math.max(this.currentSession.maxKillStreak, this.currentSession.killStreak);
         
+        console.log(`StatisticsSystem: 记录击杀 ${enemyType}，当前会话击杀数: ${this.currentSession.kills}`);
+        
         // 更新敌人类型击杀统计
         if (this.stats.enemyKills.hasOwnProperty(enemyType)) {
             this.stats.enemyKills[enemyType]++;
@@ -178,6 +181,12 @@ class StatisticsSystem {
     // 记录受到伤害
     recordDamageTaken(damage) {
         this.currentSession.damageTaken += damage;
+        this.currentSession.killStreak = 0; // 重置连击
+    }
+    
+    // 记录死亡
+    recordDeath() {
+        this.stats.totalDeaths++;
         this.currentSession.killStreak = 0; // 重置连击
     }
     
@@ -295,6 +304,32 @@ class StatisticsSystem {
         };
     }
     
+    // 获取当前会话摘要
+    getSessionSummary() {
+        const currentTime = Date.now();
+        const survivalTime = this.currentSession.startTime > 0 ? 
+            this.formatTime(currentTime - this.currentSession.startTime) : '0秒';
+        const accuracy = this.currentSession.shots > 0 ? 
+            Math.round((this.currentSession.hits / this.currentSession.shots) * 100) : 0;
+            
+        const summary = {
+            survivalTime: survivalTime,
+            kills: this.currentSession.kills,
+            accuracy: accuracy,
+            shots: this.currentSession.shots,
+            hits: this.currentSession.hits,
+            damageDealt: this.currentSession.damageDealt,
+            damageTaken: this.currentSession.damageTaken,
+            killStreak: this.currentSession.killStreak,
+            maxKillStreak: this.currentSession.maxKillStreak,
+            powerupsCollected: this.currentSession.powerupsCollected,
+            distanceTraveled: Math.round(this.currentSession.distanceTraveled)
+        };
+        
+        console.log('StatisticsSystem: getSessionSummary返回数据:', summary);
+        return summary;
+    }
+    
     // 保存统计数据
     saveStatistics() {
         const saveData = {
@@ -346,7 +381,8 @@ class StatisticsSystem {
             obstaclesDestroyed: 0,
             distanceTraveled: 0,
             perfectLevels: 0,
-            maxKillStreak: 0
+            maxKillStreak: 0,
+            totalDeaths: 0
         };
         
         this.gameHistory = [];

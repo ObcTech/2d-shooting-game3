@@ -304,6 +304,46 @@ class Game {
             this.developerConsole = window.developerConsole;
         }
         
+        // 初始化角色视觉系统
+        if (window.characterVisualSystem) {
+            this.characterVisualSystem = window.characterVisualSystem;
+        }
+        
+        // 初始化敌人多样化系统
+        if (window.enemyDiversitySystem) {
+            this.enemyDiversitySystem = window.enemyDiversitySystem;
+        }
+        
+        // 初始化增强AI系统
+        if (window.EnhancedAISystem) {
+            this.enhancedAISystem = new EnhancedAISystem();
+        }
+        
+        // 初始化智能敌人AI系统
+        if (window.IntelligentEnemyAI) {
+            this.intelligentEnemyAI = new IntelligentEnemyAI();
+        }
+        
+        // 初始化群体行为系统
+        if (window.GroupBehaviorSystem) {
+            this.groupBehaviorSystem = new GroupBehaviorSystem();
+        }
+        
+        // 初始化动态难度系统
+        if (window.DynamicDifficultySystem) {
+            this.dynamicDifficultySystem = new DynamicDifficultySystem();
+        }
+        
+        // 初始化学习型AI系统
+        if (window.LearningAISystem) {
+            this.learningAISystem = new LearningAISystem();
+        }
+        
+        // 初始化开发者控制台
+        if (window.developerConsole) {
+            this.developerConsole = window.developerConsole;
+        }
+        
         // 测试调试器
         this.gameTester = new GameTester(this);
         window.gameTester = this.gameTester; // 全局访问，便于调试
@@ -578,6 +618,37 @@ class Game {
                 this.unifiedUI.togglePanel('controls');
             }
             
+            // AI级别调整
+            if (e.key === 'F2') {
+                if (window.AI_LEVEL > 0) {
+                    window.AI_LEVEL--;
+                    const aiLevels = [
+                        '基础移动',
+                        '增强AI',
+                        '智能AI',
+                        '群体行为',
+                        '动态难度',
+                        '学习AI',
+                        '多样化系统'
+                    ];
+                    console.log(`AI级别降低到: ${window.AI_LEVEL} (${aiLevels[window.AI_LEVEL]})`);
+                }
+            } else if (e.key === 'F3') {
+                if (window.AI_LEVEL < 6) {
+                    window.AI_LEVEL++;
+                    const aiLevels = [
+                        '基础移动',
+                        '增强AI',
+                        '智能AI',
+                        '群体行为',
+                        '动态难度',
+                        '学习AI',
+                        '多样化系统'
+                    ];
+                    console.log(`AI级别提升到: ${window.AI_LEVEL} (${aiLevels[window.AI_LEVEL]})`);
+                }
+            }
+            
             // 技能升级快捷键 (Shift + 数字)
             if (e.shiftKey && e.key >= '1' && e.key <= '8') {
                 const skillIndex = parseInt(e.key) - 1;
@@ -661,7 +732,16 @@ class Game {
     
     update() {
         if (!this.gameRunning) return;
-        
+
+        // 清理无效的敌人对象
+        this.enemies = this.enemies.filter(enemy => {
+            if (!enemy || typeof enemy.update !== 'function') {
+                console.warn('[DEBUG] Removing invalid enemy from array:', enemy);
+                return false;
+            }
+            return true;
+        });
+
         // 计算deltaTime
         const currentTime = performance.now();
         const deltaTime = this.lastFrameTime ? currentTime - this.lastFrameTime : 16.67;
@@ -669,6 +749,11 @@ class Game {
         
         // 更新玩家（传递deltaTime）
         this.player.update(this.keys, this.width, this.height, deltaTime);
+        
+        // 更新角色视觉系统
+        if (this.characterVisualSystem) {
+            this.characterVisualSystem.updatePlayer(this.player, deltaTime);
+        }
         
         // 检查技能效果对玩家的影响
         if (this.player.skillSystem.hasActiveSkill('invincibility')) {
@@ -696,7 +781,11 @@ class Game {
         // 添加新生成的敌人到游戏中
         newEnemies.forEach(enemy => {
             console.log(`[DEBUG] Adding enemy to game:`, enemy);
-            this.enemies.push(enemy);
+            if (enemy && typeof enemy.update === 'function') {
+                this.enemies.push(enemy);
+            } else {
+                console.warn('[DEBUG] Skipping invalid enemy:', enemy);
+            }
         });
         
         // 生成道具
@@ -706,10 +795,25 @@ class Game {
             this.powerupSpawnTimer = 0;
         }
         
-        // 更新敌人（应用时间减缓效果）
+        // AI控制级别 (0=基础移动, 1=增强AI, 2=智能AI, 3=群体行为, 4=动态难度, 5=学习AI, 6=多样化系统)
+        window.AI_LEVEL = window.AI_LEVEL || 0; // 从最基础开始
+        
+        // 更新敌人（渐进式AI系统）
         this.enemies.forEach(enemy => {
+            // 检查敌人对象是否有效
+            if (!enemy || typeof enemy.update !== 'function') {
+                console.warn('Invalid enemy object found:', enemy);
+                return;
+            }
+            
+            // 标记敌人已被更新，避免重复处理
+            if (enemy.updatedThisFrame) {
+                return;
+            }
+            enemy.updatedThisFrame = true;
+            
+            // 基础移动逻辑（AI_LEVEL >= 0）
             if (timeMultiplier < 1.0) {
-                // 时间减缓时，敌人移动速度降低
                 const originalSpeed = enemy.speed;
                 enemy.speed *= timeMultiplier;
                 enemy.update(this.player.x, this.player.y, this.obstacles, deltaTime);
@@ -724,6 +828,74 @@ class Game {
                 enemy.bullets = [];
             }
         });
+        
+        // 清除敌人的更新标记，为下一帧准备
+        this.enemies.forEach(enemy => {
+            if (enemy && typeof enemy === 'object') {
+                enemy.updatedThisFrame = false;
+            }
+        });
+        
+        // 渐进式AI系统启用
+        if (window.AI_LEVEL >= 1 && this.enhancedAISystem) {
+            // 增强AI系统
+            this.enhancedAISystem.update(this.enemies, this.player, deltaTime);
+        }
+        
+        if (window.AI_LEVEL >= 2 && this.intelligentEnemyAI) {
+            // 智能敌人AI系统
+            this.intelligentEnemyAI.update(this.enemies, this.player, deltaTime);
+        }
+        
+        if (window.AI_LEVEL >= 3 && this.groupBehaviorSystem) {
+            // 群体行为系统
+            this.groupBehaviorSystem.update(this.enemies, this.player, deltaTime);
+        }
+        
+        if (window.AI_LEVEL >= 4 && this.dynamicDifficultySystem) {
+            // 动态难度系统
+            this.dynamicDifficultySystem.update(this, this.player, deltaTime);
+        }
+        
+        if (window.AI_LEVEL >= 5 && this.learningAISystem) {
+            // 学习型AI系统
+            this.learningAISystem.update(this, this.enemies, this.player, deltaTime);
+        }
+        
+        if (window.AI_LEVEL >= 6 && this.enemyDiversitySystem) {
+            // 敌人多样化系统（最高级）
+            this.enemies.forEach(enemy => {
+                if (!enemy.diversityUpdated) {
+                    if (timeMultiplier < 1.0) {
+                        const adjustedDeltaTime = deltaTime * timeMultiplier;
+                        this.enemyDiversitySystem.updateEnemyAI(
+                            enemy, this.player, adjustedDeltaTime, this.obstacles, this.enemies
+                        );
+                    } else {
+                        this.enemyDiversitySystem.updateEnemyAI(
+                            enemy, this.player, deltaTime, this.obstacles, this.enemies
+                        );
+                    }
+                    enemy.diversityUpdated = true;
+                    
+                    // 处理自爆敌人
+                    if (enemy.selfDestructTriggered && Date.now() >= enemy.selfDestructTime) {
+                        this.createExplosion(enemy.x, enemy.y, 40, enemy.damage);
+                        const index = this.enemies.indexOf(enemy);
+                        if (index > -1) {
+                            this.enemies.splice(index, 1);
+                        }
+                    }
+                }
+            });
+            
+            // 清除多样化系统更新标记
+            this.enemies.forEach(enemy => {
+                if (enemy && typeof enemy === 'object') {
+                    enemy.diversityUpdated = false;
+                }
+            });
+        }
         
         // 更新敌人子弹
         this.enemyBullets.forEach(bullet => {
@@ -748,7 +920,12 @@ class Game {
                 const minionX = boss.x + Math.cos(angle) * distance;
                 const minionY = boss.y + Math.sin(angle) * distance;
                 
-                this.enemies.push(new Enemy(minionX, minionY, 'fast'));
+                const minion = new Enemy(minionX, minionY, 'fast');
+                if (minion && typeof minion.update === 'function') {
+                    this.enemies.push(minion);
+                } else {
+                    console.warn('[DEBUG] Failed to create boss minion');
+                }
             }
         });
         
@@ -869,11 +1046,14 @@ class Game {
                         
                         // 敌人死亡时掉落金币
                         const coinCount = 1 + Math.floor(Math.random() * 3); // 掉落1-3个金币
+                        console.log(`敌人死亡，准备掉落 ${coinCount} 个金币，位置: (${enemy.x}, ${enemy.y})`);
                         for (let k = 0; k < coinCount; k++) {
                             const offsetX = (Math.random() - 0.5) * 40;
                             const offsetY = (Math.random() - 0.5) * 40;
                             this.coinSystem.dropCoin(enemy.x + offsetX, enemy.y + offsetY);
+                            console.log(`掉落金币 ${k+1}/${coinCount}，位置: (${enemy.x + offsetX}, ${enemy.y + offsetY})`);
                         }
+                        console.log(`当前金币总数: ${this.coinSystem.coins.length}`);
                         
                         // 移除敌人
                         this.enemies.splice(j, 1);
@@ -1272,8 +1452,20 @@ class Game {
             obstacle.render(this.ctx);
         });
         
-        // 绘制游戏对象（使用角色动画系统）
-        if (this.characterAnimation) {
+        // 绘制玩家（使用新的角色视觉系统）
+        if (this.characterVisualSystem) {
+            // 使用角色视觉系统渲染玩家
+            this.characterVisualSystem.renderPlayer(this.ctx, this.player);
+            
+            // 渲染装备视觉效果
+            if (this.player.currentWeapon) {
+                this.characterVisualSystem.renderEquipment(this.ctx, this.player, this.player.currentWeapon);
+            }
+            
+            // 渲染状态指示器
+            this.characterVisualSystem.renderStatusIndicators(this.ctx, this.player);
+        } else if (this.characterAnimation) {
+            // 回退到旧的角色动画系统
             const animationData = this.characterAnimation.updateAnimation(16.67);
             this.characterAnimation.renderCharacter(
                 this.ctx, 
@@ -1284,22 +1476,55 @@ class Game {
                 animationData
             );
         } else {
+            // 回退到基础渲染
             this.player.render(this.ctx);
         }
         
-        // 绘制敌人（使用角色动画系统）
+        // 绘制敌人（使用新的角色视觉系统和敌人多样化系统）
         this.enemies.forEach(enemy => {
-            if (this.characterAnimation) {
-                // 为每个敌人创建独立的动画实例或使用共享动画
+            if (this.enemyDiversitySystem && this.characterVisualSystem) {
+                // 使用敌人多样化系统渲染
+                this.enemyDiversitySystem.renderEnemy(this.ctx, enemy);
+                
+                // 渲染精灵动画
+                if (enemy.animationState && enemy.animationStartTime) {
+                    const frameIndex = this.characterVisualSystem.getAnimationFrame(
+                        enemy.type + '_' + enemy.animationState, 
+                        enemy.animationStartTime
+                    );
+                    this.characterVisualSystem.renderSpriteAnimation(
+                        this.ctx, enemy, enemy.type + '_' + enemy.animationState, frameIndex
+                    );
+                }
+                
+                // 渲染状态指示器
+                this.characterVisualSystem.renderStatusIndicators(this.ctx, enemy);
+                
+                // 渲染AI可视化（如果启用调试模式）
+                if (this.developerConsole && this.developerConsole.debugMode) {
+                    if (enemy.aiState === 'attack') {
+                        this.characterVisualSystem.renderAIVisualization(
+                            this.ctx, enemy, 'attack_warning', {}
+                        );
+                    }
+                    if (enemy.detectionRange) {
+                        this.characterVisualSystem.renderAIVisualization(
+                            this.ctx, enemy, 'detection_range', { range: enemy.detectionRange }
+                        );
+                    }
+                }
+            } else if (this.characterAnimation) {
+                // 回退到原有的角色动画系统
                 this.characterAnimation.renderCharacter(
                     this.ctx, 
                     enemy.x, 
                     enemy.y, 
                     enemy.radius, 
                     enemy.color || '#FF5722', 
-                    null // 暂时不使用动画数据
+                    null
                 );
             } else {
+                // 回退到基础渲染
                 enemy.render(this.ctx);
             }
         });
@@ -1372,6 +1597,40 @@ class Game {
         // 应用视觉特效增强系统的后处理效果
         if (this.visualEffectsEnhanced) {
             this.visualEffectsEnhanced.applyPostProcessing(this.ctx, this.canvas);
+        }
+        
+        // 渲染AI系统调试信息
+        if (this.developerConsole && this.developerConsole.debugMode) {
+            let debugY = 10;
+            
+            // 渲染增强AI系统调试信息
+            if (this.enhancedAISystem) {
+                this.enhancedAISystem.renderDebugInfo(this.ctx, 10, debugY);
+                debugY += 120;
+            }
+            
+            // 渲染智能敌人AI系统调试信息
+            if (this.intelligentEnemyAI) {
+                this.intelligentEnemyAI.renderDebugInfo(this.ctx, 10, debugY);
+                debugY += 120;
+            }
+            
+            // 渲染群体行为系统调试信息
+            if (this.groupBehaviorSystem) {
+                this.groupBehaviorSystem.renderDebugInfo(this.ctx, 10, debugY);
+                debugY += 120;
+            }
+            
+            // 渲染动态难度系统调试信息
+            if (this.dynamicDifficultySystem) {
+                this.dynamicDifficultySystem.renderDebugInfo(this.ctx, 10, debugY);
+                debugY += 120;
+            }
+            
+            // 渲染学习型AI系统调试信息
+            if (this.learningAISystem) {
+                this.learningAISystem.renderDebugInfo(this.ctx, 10, debugY);
+            }
         }
         
         // 恢复画布状态（屏幕震动效果）

@@ -275,23 +275,42 @@ class WaveSystem {
             enemyType = 'simple_boss';
             console.log(`[DEBUG] Spawning boss enemy`);
         } else {
-            enemyType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
-            console.log(`[DEBUG] Selected enemy type: ${enemyType}`);
+            // 优先使用敌人多样化系统的随机类型选择
+            if (window.enemyDiversitySystem) {
+                enemyType = window.enemyDiversitySystem.getRandomEnemyType();
+                console.log(`[DEBUG] Selected enemy type from diversity system: ${enemyType}`);
+            } else {
+                // 回退到原有逻辑
+                enemyType = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+                console.log(`[DEBUG] Selected enemy type from wave config: ${enemyType}`);
+            }
         }
         
         // 生成位置
         const spawnPosition = this.getSpawnPosition();
         console.log(`[DEBUG] Spawn position:`, spawnPosition);
         
-        // 使用敌人工厂创建敌人
-        console.log(`[DEBUG] EnemyFactory available:`, typeof EnemyFactory !== 'undefined');
-        if (typeof EnemyFactory !== 'undefined') {
-            const enemy = EnemyFactory.createEnemy(enemyType, spawnPosition.x, spawnPosition.y);
-            console.log(`[DEBUG] Enemy created:`, enemy);
+        // 优先使用敌人多样化系统创建敌人
+        if (window.enemyDiversitySystem) {
+            const enemy = window.enemyDiversitySystem.createEnemy(
+                enemyType, 
+                spawnPosition.x, 
+                spawnPosition.y, 
+                this.currentWave
+            );
+            console.log(`[DEBUG] Enemy created with diversity system:`, enemy);
             return enemy;
         }
         
-        console.log(`[DEBUG] EnemyFactory not available, returning null`);
+        // 回退到敌人工厂
+        console.log(`[DEBUG] EnemyFactory available:`, typeof EnemyFactory !== 'undefined');
+        if (typeof EnemyFactory !== 'undefined') {
+            const enemy = EnemyFactory.createEnemy(enemyType, spawnPosition.x, spawnPosition.y);
+            console.log(`[DEBUG] Enemy created with factory:`, enemy);
+            return enemy;
+        }
+        
+        console.log(`[DEBUG] No enemy creation system available, returning null`);
         return null;
     }
     

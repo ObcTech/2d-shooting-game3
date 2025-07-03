@@ -368,6 +368,7 @@ class CoinSystem {
         
         const coin = new Coin(x + offsetX, y + offsetY, value);
         this.coins.push(coin);
+        console.log(`CoinSystem: 创建金币，最终位置: (${x + offsetX}, ${y + offsetY})，当前金币数组长度: ${this.coins.length}`);
     }
     
     // 添加升级站

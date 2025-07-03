@@ -237,6 +237,13 @@ class UnifiedUIManager {
             <div class="control-item">
                 <span class="control-key">F1</span> - 设置面板
             </div>
+            <div class="control-item">
+                <span class="control-key">F2/F3</span> - AI级别调整
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">AI级别:</span>
+                <span class="stat-value" id="ui-ai-level">0</span>
+            </div>
         `;
     }
     
@@ -442,7 +449,8 @@ class UnifiedUIManager {
             enemyCount: this.game.enemies?.length || 0,
             skillPoints: this.game.player?.skillSystem?.skillPoints || 0,
             coins: this.game.player?.coins || 0,
-            attackPower: this.game.player?.baseAttackPower || 1
+            attackPower: this.game.player?.baseAttackPower || 1,
+            aiLevel: window.AI_LEVEL || 0
         };
         
         // 更新游戏信息面板内容
@@ -508,7 +516,11 @@ class UnifiedUIManager {
                          <span class="stat-label">攻击力:</span>
                          <span class="stat-value" style="color: #ff6b6b">${data.attackPower || 1}</span>
                      </div>
-                 `;
+                     <div class="stat-item">
+                          <span class="stat-label">AI级别:</span>
+                          <span class="stat-value" style="color: #ff9ff3">${data.aiLevel || 0}</span>
+                      </div>
+                  `;
             }
         }
     }
