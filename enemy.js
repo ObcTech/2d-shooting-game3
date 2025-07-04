@@ -17,7 +17,7 @@ class BaseEnemy {
         this.lastAttackTime = 0;
         this.attackCooldown = 1000; // 1秒攻击冷却
         this.isAlive = true;
-        this.statusEffects = {};
+        this.statusEffects = new Map();
         
         // 初始化特定类型属性
         this.initializeType();
@@ -84,12 +84,12 @@ class BaseEnemy {
     
     updateStatusEffects(deltaTime) {
         // 更新状态效果（如减速、中毒等）
-        Object.keys(this.statusEffects).forEach(effect => {
-            this.statusEffects[effect].duration -= deltaTime;
-            if (this.statusEffects[effect].duration <= 0) {
-                delete this.statusEffects[effect];
+        for (const [effect, data] of this.statusEffects.entries()) {
+            data.duration -= deltaTime;
+            if (data.duration <= 0) {
+                this.statusEffects.delete(effect);
             }
-        });
+        }
     }
     
     getDistanceToObstacle(obstacle) {
@@ -112,10 +112,10 @@ class BaseEnemy {
     }
     
     applyStatusEffect(effect, duration, intensity = 1) {
-        this.statusEffects[effect] = {
+        this.statusEffects.set(effect, {
             duration: duration,
             intensity: intensity
-        };
+        });
     }
     
     render(ctx) {
@@ -154,12 +154,12 @@ class BaseEnemy {
     renderStatusEffects(ctx) {
         // 绘制状态效果指示器
         let effectIndex = 0;
-        Object.keys(this.statusEffects).forEach(effect => {
+        for (const effect of this.statusEffects.keys()) {
             const y = -this.radius - 15 - (effectIndex * 8);
             ctx.fillStyle = this.getEffectColor(effect);
             ctx.fillRect(-3, y, 6, 3);
             effectIndex++;
-        });
+        }
     }
     
     getEffectColor(effect) {

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简单测试页面</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #222;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 2px solid #555;
+            background: #000;
+        }
+        #info {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        #status-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 10px;
+            background: #333;
+            border-radius: 4px;
+        }
+        .status-label {
+            font-weight: bold;
+        }
+        .status-value {
+            color: #ccc;
+        }
+        .status-value.green { color: #4CAF50; }
+        .status-value.red { color: #f44336; }
+        .status-value.orange { color: #ff9800; }
+        .status-value.blue { color: #2196F3; }
+        .status-value.cyan { color: #00BCD4; }
+    </style>
+</head>
+<body>
+    <h1>游戏系统测试</h1>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="info">
+        <div id="status-container">
+            <div class="status-item">
+                <span class="status-label">CONFIG:</span>
+                <span id="config-status" class="status-value">检查中...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">EnemyFactory:</span>
+                <span id="factory-status" class="status-value">检查中...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">WaveSystem:</span>
+                <span id="wave-status" class="status-value">检查中...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">敌人数量:</span>
+                <span id="enemy-count" class="status-value">0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">波次信息:</span>
+                <span id="wave-info" class="status-value">等待中...</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">波次进度:</span>
+                <span id="wave-progress" class="status-value">0/0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">波次目标:</span>
+                <span id="wave-goal" class="status-value">未知</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">系统状态:</span>
+                <span id="status" class="status-value">初始化中...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 按正确顺序加载脚本 -->
+    <script src="config.js"></script>
+    <script src="visual-config.js"></script>
+    <script src="enemy-diversity-system.js"></script>
+    <script src="enemy.js"></script>
+    <script src="wave.js"></script>
+    
+    <script>
+        let canvas, ctx, enemies = [], waveSystem, enemyFactory;
+        let gameRunning = false;
+        let lastTime = 0;
+        
+        function updateStatus(elementId, text, colorClass = null) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = text;
+                // 清除所有颜色类
+                element.className = 'status-value';
+                // 添加新的颜色类
+                if (colorClass) {
+                    element.classList.add(colorClass);
+                }
+            }
+        }
+        
+        function initGame() {
+            try {
+                updateStatus('status', '开始初始化...');
+                
+                // 检查CONFIG
+                if (typeof CONFIG === 'undefined') {
+                    throw new Error('CONFIG未定义');
+                }
+                updateStatus('config-status', '✓ 已加载', 'green');
+                
+                // 检查canvas
+                canvas = document.getElementById('gameCanvas');
+                ctx = canvas.getContext('2d');
+                
+                // 检查敌人多样性系统
+                if (typeof window.enemyDiversitySystem === 'undefined') {
+                    throw new Error('enemyDiversitySystem未定义');
+                }
+                
+                // 检查敌人工厂
+                if (typeof EnemyFactory === 'undefined') {
+                    throw new Error('EnemyFactory未定义');
+                }
+                enemyFactory = new EnemyFactory();
+                updateStatus('factory-status', '✓ 已创建', 'green');
+                
+                // 检查波次系统
+                if (typeof WaveSystem === 'undefined') {
+                    throw new Error('WaveSystem未定义');
+                }
+                waveSystem = new WaveSystem(true);
+                updateStatus('wave-status', '✓ 已创建', 'green');
+                
+                updateStatus('status', '✓ 初始化完成', 'green');
+                gameRunning = true;
+                gameLoop();
+                
+            } catch (error) {
+                console.error('初始化失败:', error);
+                updateStatus('status', `✗ 初始化失败: ${error.message}`, 'red');
+            }
+        }
+        
+        function gameLoop() {
+            if (!gameRunning) return;
+            
+            try {
+                // 模拟游戏循环
+                const currentTime = performance.now();
+                const deltaTime = currentTime - lastTime || 16.67;
+                lastTime = currentTime;
+                
+                console.log(`[GAME LOOP] deltaTime: ${deltaTime}, enemies: ${enemies.length}`);
+                console.log(`[GAME LOOP] WaveSystem state: wave=${waveSystem.currentWave}, active=${waveSystem.isWaveActive}, spawned=${waveSystem.enemiesSpawned}`);
+                
+                // 检查CONFIG是否可用
+                if (typeof CONFIG === 'undefined') {
+                    console.error('[GAME LOOP] CONFIG is undefined!');
+                    updateStatus('status', '✗ CONFIG未定义', 'red');
+                    return;
+                }
+                
+                // 检查EnemyFactory是否可用
+                if (typeof EnemyFactory === 'undefined') {
+                    console.error('[GAME LOOP] EnemyFactory is undefined!');
+                    updateStatus('status', '✗ EnemyFactory未定义', 'red');
+                    return;
+                }
+                
+                // 清空画布
+                ctx.fillStyle = '#333';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // 更新波次系统
+                console.log(`[GAME LOOP] Calling waveSystem.update...`);
+                const newEnemies = waveSystem.update(deltaTime, enemies, null);
+                console.log(`[GAME LOOP] WaveSystem returned ${newEnemies.length} enemies`);
+                
+                // 添加新敌人
+                newEnemies.forEach((enemy, index) => {
+                    if (enemy) {
+                        enemies.push(enemy);
+                        console.log(`[GAME LOOP] Added enemy ${index}:`, enemy.type, enemy.x, enemy.y);
+                    } else {
+                        console.warn(`[GAME LOOP] Enemy ${index} is null/undefined`);
+                    }
+                });
+                
+                // 更新敌人
+                enemies = enemies.filter(enemy => {
+                    if (enemy && typeof enemy.update === 'function') {
+                        enemy.update();
+                        return enemy.health > 0;
+                    }
+                    return false;
+                });
+                
+                // 渲染敌人
+                enemies.forEach(enemy => {
+                    if (enemy && typeof enemy.draw === 'function') {
+                        enemy.draw(ctx);
+                    }
+                });
+                
+                // 更新状态显示
+                updateStatus('enemy-count', `敌人数量: ${enemies.length}`, enemies.length > 0 ? 'green' : 'orange');
+                updateStatus('wave-info', `波次: ${waveSystem.currentWave}, 活跃: ${waveSystem.isWaveActive}`, waveSystem.isWaveActive ? 'green' : 'orange');
+                
+                const progress = waveSystem.getWaveProgress();
+                updateStatus('wave-progress', `进度: ${progress.enemiesKilled}/${progress.enemiesTotal}, 已生成: ${waveSystem.enemiesSpawned}`, 'blue');
+                
+                // 绘制波次信息
+                if (waveSystem) {
+                    ctx.fillStyle = 'white';
+                    ctx.font = '16px Arial';
+                    ctx.fillText(`波次: ${waveSystem.currentWave}`, 10, 30);
+                    ctx.fillText(`状态: ${waveSystem.isWaveActive ? '活跃' : '等待'}`, 10, 50);
+                }
+                
+                // 显示详细的波次状态
+                const waveGoal = waveSystem.waveGoals[waveSystem.currentWave];
+                if (waveGoal) {
+                    updateStatus('wave-goal', `目标: ${waveGoal.enemyCount}个敌人, 类型: ${waveGoal.enemyTypes.join(', ')}`, 'cyan');
+                }
+                
+            } catch (error) {
+                console.error('游戏循环错误:', error);
+                updateStatus('status', `✗ 运行错误: ${error.message}`, 'red');
+                gameRunning = false;
+            }
+            
+            if (gameRunning) {
+                requestAnimationFrame(gameLoop);
+            }
+        }
+        
+        // 等待页面加载完成
+        window.addEventListener('load', () => {
+            setTimeout(initGame, 100);
+        });
+    </script>
+</body>
+</html>

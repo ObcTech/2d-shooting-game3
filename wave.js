@@ -5,6 +5,7 @@ class WaveSystem {
         this.currentWave = 1;
         this.enemiesInWave = 0;
         this.enemiesKilled = 0;
+        this.enemiesSpawned = 0; // 新增：跟踪已生成的敌人数量
         this.waveStartTime = 0;
         this.waveDuration = 30000; // 30秒一波
         this.isWaveActive = false;
@@ -107,6 +108,7 @@ class WaveSystem {
         this.waveCompleted = false;
         this.waveStartTime = Date.now();
         this.enemiesKilled = 0;
+        this.enemiesSpawned = 0; // 重置已生成敌人计数
         this.spawnTimer = 0;
         
         const waveGoal = this.waveGoals[this.currentWave];
@@ -255,9 +257,9 @@ class WaveSystem {
     }
     
     spawnEnemy() {
-        console.log(`[DEBUG] spawnEnemy called - enemiesKilled: ${this.enemiesKilled}, target: ${this.waveGoals[this.currentWave].enemyCount}`);
+        console.log(`[DEBUG] spawnEnemy called - enemiesSpawned: ${this.enemiesSpawned}, target: ${this.waveGoals[this.currentWave].enemyCount}`);
         
-        if (this.enemiesKilled >= this.waveGoals[this.currentWave].enemyCount) {
+        if (this.enemiesSpawned >= this.waveGoals[this.currentWave].enemyCount) {
             console.log(`[DEBUG] Already spawned enough enemies for this wave`);
             return null; // 已经生成足够的敌人
         }
@@ -270,7 +272,7 @@ class WaveSystem {
         
         // 选择敌人类型
         let enemyType;
-        if (this.bossWaves.includes(this.currentWave) && this.enemiesKilled === waveGoal.enemyCount - 1) {
+        if (this.bossWaves.includes(this.currentWave) && this.enemiesSpawned === waveGoal.enemyCount - 1) {
             // 最后一个敌人是Boss
             enemyType = 'simple_boss';
             console.log(`[DEBUG] Spawning boss enemy`);
@@ -292,22 +294,40 @@ class WaveSystem {
         
         // 优先使用敌人多样化系统创建敌人
         if (window.enemyDiversitySystem) {
+            console.log(`[DEBUG] Calling enemyDiversitySystem.createEnemy with type: ${enemyType}`);
             const enemy = window.enemyDiversitySystem.createEnemy(
                 enemyType, 
                 spawnPosition.x, 
                 spawnPosition.y, 
                 this.currentWave
             );
-            console.log(`[DEBUG] Enemy created with diversity system:`, enemy);
-            return enemy;
+            if (enemy) {
+                this.enemiesSpawned++; // 增加已生成敌人计数
+                console.log(`[DEBUG] ✅ Enemy created with diversity system:`, enemy);
+                console.log(`[DEBUG] Enemy type: ${enemy.type}, health: ${enemy.health}, position: (${enemy.x}, ${enemy.y})`);
+                return enemy;
+            } else {
+                console.log(`[DEBUG] ❌ enemyDiversitySystem.createEnemy returned null`);
+            }
+        } else {
+            console.log(`[DEBUG] ❌ window.enemyDiversitySystem is not available`);
         }
         
         // 回退到敌人工厂
         console.log(`[DEBUG] EnemyFactory available:`, typeof EnemyFactory !== 'undefined');
         if (typeof EnemyFactory !== 'undefined') {
+            console.log(`[DEBUG] Calling EnemyFactory.createEnemy with type: ${enemyType}`);
             const enemy = EnemyFactory.createEnemy(enemyType, spawnPosition.x, spawnPosition.y);
-            console.log(`[DEBUG] Enemy created with factory:`, enemy);
-            return enemy;
+            if (enemy) {
+                this.enemiesSpawned++; // 增加已生成敌人计数
+                console.log(`[DEBUG] ✅ Enemy created with factory:`, enemy);
+                console.log(`[DEBUG] Enemy type: ${enemy.type}, health: ${enemy.health}, position: (${enemy.x}, ${enemy.y})`);
+                return enemy;
+            } else {
+                console.log(`[DEBUG] ❌ EnemyFactory.createEnemy returned null`);
+            }
+        } else {
+            console.log(`[DEBUG] ❌ EnemyFactory is not available`);
         }
         
         console.log(`[DEBUG] No enemy creation system available, returning null`);
@@ -379,6 +399,7 @@ class WaveSystem {
         this.currentWave = 1;
         this.enemiesInWave = 0;
         this.enemiesKilled = 0;
+        this.enemiesSpawned = 0; // 重置已生成敌人计数
         this.waveStartTime = 0;
         this.isWaveActive = false;
         this.waveCompleted = false;

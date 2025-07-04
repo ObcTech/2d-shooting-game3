@@ -425,51 +425,61 @@ class EnemyDiversitySystem {
     createEnemy(type, x, y, level = 1) {
         const enemyData = this.enemyTypes.get(type);
         if (!enemyData) {
-            console.warn(`未知的敌人类型: ${type}`);
+            console.warn(`未知的敌人类型: ${type}，回退到EnemyFactory`);
+            // 回退到EnemyFactory
+            if (typeof EnemyFactory !== 'undefined') {
+                return EnemyFactory.createEnemy('normal', x, y);
+            }
             return null;
         }
         
-        const enemy = {
-            type: type,
-            x: x,
-            y: y,
-            level: level,
-            
-            // 基础属性（根据等级调整）
-            maxHealth: Math.floor(enemyData.health * (1 + (level - 1) * 0.3)),
-            health: 0,
-            speed: enemyData.speed * (1 + (level - 1) * 0.1),
-            damage: Math.floor(enemyData.damage * (1 + (level - 1) * 0.25)),
-            radius: enemyData.radius,
-            color: enemyData.color,
-            
-            // 行为和能力
-            behavior: enemyData.behavior,
-            abilities: [...enemyData.abilities],
-            
-            // 状态
-            isAlive: true,
-            lastAbilityUse: new Map(),
-            statusEffects: new Map(),
-            
-            // 视觉
-            visualVariant: this.getRandomVisualVariant(type),
-            animationState: 'idle',
-            animationStartTime: Date.now(),
-            
-            // AI状态
-            aiState: 'patrol',
-            target: null,
-            lastPlayerPosition: null,
-            pathfindingData: null,
-            
-            // 经验值
-            experienceReward: Math.floor(enemyData.experience * (1 + (level - 1) * 0.5))
-        };
+        // 映射到现有的敌人类型
+        let mappedType = 'normal';
+        switch(type) {
+            case 'grunt':
+            case 'normal':
+                mappedType = 'normal';
+                break;
+            case 'scout':
+                mappedType = 'fast';
+                break;
+            case 'heavy':
+                mappedType = 'tank';
+                break;
+            case 'sniper':
+                mappedType = 'ranged';
+                break;
+            case 'elite_guard':
+            case 'boss_minion':
+                mappedType = 'simple_boss';
+                break;
+            default:
+                mappedType = 'normal';
+        }
         
-        enemy.health = enemy.maxHealth;
+        // 使用EnemyFactory创建真正的敌人实例
+        if (typeof EnemyFactory !== 'undefined') {
+            const enemy = EnemyFactory.createEnemy(mappedType, x, y);
+            if (enemy) {
+                // 应用多样化系统的属性调整
+                const levelMultiplier = 1 + (level - 1) * 0.3;
+                enemy.maxHealth = Math.floor(enemy.maxHealth * levelMultiplier);
+                enemy.health = enemy.maxHealth;
+                enemy.damage = Math.floor(enemy.damage * levelMultiplier);
+                enemy.diversityType = type; // 记录原始类型
+                enemy.diversityLevel = level;
+                
+                // 设置视觉变体
+                enemy.visualVariant = this.getRandomVisualVariant(type);
+                
+                console.log(`[DEBUG] EnemyDiversitySystem created ${type} -> ${mappedType} enemy:`, enemy);
+                console.log(`[DEBUG] Visual variant:`, enemy.visualVariant);
+                return enemy;
+            }
+        }
         
-        return enemy;
+        console.warn('EnemyFactory不可用，无法创建敌人');
+        return null;
     }
     
     // 获取随机视觉变体
@@ -869,7 +879,7 @@ class EnemyDiversitySystem {
         ctx.save();
         
         // 应用视觉效果
-        const variant = enemy.visualVariant;
+        const variant = enemy.visualVariant || { color: enemy.color || '#e74c3c', size: 1.0, pattern: 'solid' };
         let alpha = 1.0;
         
         if (enemy.statusEffects.has('invisibility')) {

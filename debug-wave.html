@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wave System Debug</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #222;
+            color: #fff;
+            font-family: Arial, sans-serif;
+        }
+        #debug {
+            background: #333;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        #gameCanvas {
+            border: 2px solid #fff;
+        }
+        .error {
+            color: #ff4757;
+            background: #2d1b1b;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="debug">
+        <h2>Wave System Debug</h2>
+        <div id="debugInfo">Loading...</div>
+        <div id="errors"></div>
+    </div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    
+    <script>
+        // 错误捕获
+        window.onerror = function(msg, url, line, col, error) {
+            const errorDiv = document.getElementById('errors');
+            errorDiv.innerHTML += `<div class="error">Error: ${msg} at line ${line}</div>`;
+            console.error('Error:', msg, 'at', url, line, col, error);
+        };
+        
+        // 加载脚本的函数
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = resolve;
+                script.onerror = reject;
+                document.head.appendChild(script);
+            });
+        }
+        
+        // 按顺序加载脚本
+        async function loadScripts() {
+            try {
+                console.log('Loading config.js...');
+                await loadScript('config.js');
+                console.log('config.js loaded');
+                
+                console.log('Loading visual-config.js...');
+                await loadScript('visual-config.js');
+                console.log('visual-config.js loaded');
+                
+                console.log('Loading enemy.js...');
+                await loadScript('enemy.js');
+                console.log('enemy.js loaded');
+                
+                console.log('Loading enemy-diversity-system.js...');
+                await loadScript('enemy-diversity-system.js');
+                console.log('enemy-diversity-system.js loaded');
+                
+                console.log('Loading wave.js...');
+                await loadScript('wave.js');
+                console.log('wave.js loaded');
+                
+                // 测试基本功能
+                testBasicFunctionality();
+                
+            } catch (error) {
+                console.error('Failed to load script:', error);
+                document.getElementById('errors').innerHTML += `<div class="error">Failed to load script: ${error}</div>`;
+            }
+        }
+        
+        function testBasicFunctionality() {
+            console.log('Testing basic functionality...');
+            
+            // 测试EnemyFactory
+            if (typeof EnemyFactory !== 'undefined') {
+                console.log('EnemyFactory is available');
+                try {
+                    const testEnemy = EnemyFactory.createEnemy('normal', 100, 100);
+                    console.log('Test enemy created:', testEnemy);
+                } catch (error) {
+                    console.error('Failed to create test enemy:', error);
+                }
+            } else {
+                console.error('EnemyFactory is not available');
+            }
+            
+            // 测试EnemyDiversitySystem
+            if (typeof window.enemyDiversitySystem !== 'undefined') {
+                console.log('EnemyDiversitySystem is available');
+            } else {
+                console.log('EnemyDiversitySystem is not available');
+            }
+            
+            // 测试WaveSystem
+            if (typeof WaveSystem !== 'undefined') {
+                console.log('WaveSystem is available');
+                try {
+                    const testWave = new WaveSystem(false); // 不自动启动
+                    console.log('Test WaveSystem created:', testWave);
+                    
+                    // 手动启动一波
+                    testWave.startWave();
+                    console.log('Wave started manually');
+                    
+                    // 尝试生成敌人
+                    const enemy = testWave.spawnEnemy();
+                    console.log('Spawned enemy:', enemy);
+                    
+                } catch (error) {
+                    console.error('Failed to test WaveSystem:', error);
+                }
+            } else {
+                console.error('WaveSystem is not available');
+            }
+            
+            // 启动实际的调试游戏
+            startDebugGame();
+        }
+        
+        function startDebugGame() {
+            console.log('Starting debug game...');
+            
+            class DebugGame {
+                constructor() {
+                    this.canvas = document.getElementById('gameCanvas');
+                    this.ctx = this.canvas.getContext('2d');
+                    this.enemies = [];
+                    this.debugInfo = document.getElementById('debugInfo');
+                    
+                    // 初始化WaveSystem
+                    console.log('Initializing WaveSystem...');
+                    this.waveSystem = new WaveSystem(true);
+                    console.log('WaveSystem initialized:', this.waveSystem);
+                    
+                    this.lastTime = 0;
+                    this.gameLoop();
+                }
+                
+                gameLoop() {
+                    const currentTime = performance.now();
+                    const deltaTime = currentTime - this.lastTime || 16.67;
+                    this.lastTime = currentTime;
+                    
+                    this.update(deltaTime);
+                    this.render();
+                    
+                    requestAnimationFrame(() => this.gameLoop());
+                }
+                
+                update(deltaTime) {
+                    try {
+                        // 调用WaveSystem更新
+                        const newEnemies = this.waveSystem.update(deltaTime, this.enemies, this);
+                        
+                        // 添加新敌人
+                        newEnemies.forEach(enemy => {
+                            if (enemy && typeof enemy.update === 'function') {
+                                this.enemies.push(enemy);
+                                console.log('Added enemy:', enemy);
+                            }
+                        });
+                        
+                        // 更新敌人
+                        this.enemies.forEach(enemy => {
+                            if (enemy && enemy.update) {
+                                enemy.update(400, 300, [], deltaTime); // 假设玩家在中心
+                            }
+                        });
+                        
+                        // 移除超出边界的敌人
+                        this.enemies = this.enemies.filter(enemy => {
+                            return enemy.x > -100 && enemy.x < 900 && enemy.y > -100 && enemy.y < 700;
+                        });
+                        
+                        // 更新调试信息
+                        this.updateDebugInfo();
+                    } catch (error) {
+                        console.error('Error in update:', error);
+                    }
+                }
+                
+                render() {
+                    try {
+                        // 清空画布
+                        this.ctx.fillStyle = '#111';
+                        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                        
+                        // 绘制玩家位置（中心点）
+                        this.ctx.fillStyle = '#0f0';
+                        this.ctx.beginPath();
+                        this.ctx.arc(400, 300, 10, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        
+                        // 绘制敌人
+                        this.enemies.forEach(enemy => {
+                            if (enemy && enemy.render) {
+                                enemy.render(this.ctx);
+                            } else if (enemy) {
+                                // 简单绘制
+                                this.ctx.fillStyle = '#f00';
+                                this.ctx.beginPath();
+                                this.ctx.arc(enemy.x, enemy.y, enemy.radius || 15, 0, Math.PI * 2);
+                                this.ctx.fill();
+                            }
+                        });
+                        
+                        // 绘制波次信息
+                        if (this.waveSystem && this.waveSystem.renderWaveInfo) {
+                            this.waveSystem.renderWaveInfo(this.ctx, 10, 30);
+                        }
+                    } catch (error) {
+                        console.error('Error in render:', error);
+                    }
+                }
+                
+                updateDebugInfo() {
+                    try {
+                        const progress = this.waveSystem.getWaveProgress();
+                        const info = `
+                            <strong>Wave System Status:</strong><br>
+                            Current Wave: ${progress.wave}<br>
+                            Status: ${progress.status}<br>
+                            Progress: ${(progress.progress * 100).toFixed(1)}%<br>
+                            Enemies Killed: ${progress.enemiesKilled || 0}/${progress.enemiesTotal || 0}<br>
+                            Time Remaining: ${Math.ceil((progress.timeRemaining || 0) / 1000)}s<br>
+                            Enemies on Screen: ${this.enemies.length}<br>
+                            Is Wave Active: ${this.waveSystem.isWaveActive}<br>
+                            EnemyFactory Available: ${typeof EnemyFactory !== 'undefined'}<br>
+                            EnemyDiversitySystem Available: ${typeof window.enemyDiversitySystem !== 'undefined'}
+                        `;
+                        this.debugInfo.innerHTML = info;
+                    } catch (error) {
+                        console.error('Error updating debug info:', error);
+                    }
+                }
+            }
+            
+            new DebugGame();
+        }
+        
+        // 启动脚本加载
+        window.addEventListener('load', () => {
+            console.log('Page loaded, starting script loading...');
+            loadScripts();
+        });
+    </script>
+</body>
+</html>
