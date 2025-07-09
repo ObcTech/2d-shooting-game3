@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第五期无限地图养成类游戏 Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .game-container {
+            position: relative;
+            margin: 20px;
+            border: 3px solid #34495e;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            background: #2c3e50;
+        }
+        
+        #gameCanvas {
+            display: block;
+            background: #34495e;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 1.5em;
+            text-align: center;
+        }
+        
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .controls {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px;
+            max-width: 800px;
+            text-align: center;
+        }
+        
+        .controls h3 {
+            margin-top: 0;
+            color: #3498db;
+        }
+        
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .control-item {
+            background: rgba(52, 73, 94, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 3px solid #3498db;
+        }
+        
+        .features {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px;
+            max-width: 800px;
+        }
+        
+        .features h3 {
+            margin-top: 0;
+            color: #e74c3c;
+            text-align: center;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .feature-item {
+            background: rgba(231, 76, 60, 0.1);
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 3px solid #e74c3c;
+        }
+        
+        .feature-item h4 {
+            margin: 0 0 10px 0;
+            color: #e74c3c;
+        }
+        
+        .error {
+            color: #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px;
+            border: 1px solid #e74c3c;
+        }
+        
+        .success {
+            color: #27ae60;
+            background: rgba(39, 174, 96, 0.1);
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px;
+            border: 1px solid #27ae60;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .game-container {
+                margin: 10px;
+            }
+            
+            #gameCanvas {
+                width: 100%;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎮 第五期无限地图养成类游戏</h1>
+        <p>探索无限世界，建设基地，培养角色，完成任务</p>
+    </div>
+    
+    <div class="game-container">
+        <canvas id="gameCanvas" width="1000" height="600"></canvas>
+        <div class="loading" id="loadingScreen">
+            <div class="loading-spinner"></div>
+            <div>正在加载游戏...</div>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <h3>🎯 游戏控制</h3>
+        <div class="control-grid">
+            <div class="control-item">
+                <strong>移动:</strong> WASD 或 方向键
+            </div>
+            <div class="control-item">
+                <strong>背包:</strong> I 键
+            </div>
+            <div class="control-item">
+                <strong>角色面板:</strong> C 键
+            </div>
+            <div class="control-item">
+                <strong>建造面板:</strong> B 键
+            </div>
+            <div class="control-item">
+                <strong>任务面板:</strong> Q 键
+            </div>
+            <div class="control-item">
+                <strong>建造模式:</strong> G 键
+            </div>
+            <div class="control-item">
+                <strong>取消操作:</strong> ESC 键
+            </div>
+            <div class="control-item">
+                <strong>交互:</strong> 鼠标左键
+            </div>
+        </div>
+    </div>
+    
+    <div class="features">
+        <h3>🚀 核心功能特性</h3>
+        <div class="feature-grid">
+            <div class="feature-item">
+                <h4>🗺️ 无限地图系统</h4>
+                <p>程序化生成的无限世界，包含森林、沙漠、雪地、火山、海洋等多种生物群系，每个区域都有独特的资源和挑战。</p>
+            </div>
+            <div class="feature-item">
+                <h4>📈 深度养成系统</h4>
+                <p>多维度角色成长，包括等级、属性点分配、技能树学习、装备系统，打造独特的角色build。</p>
+            </div>
+            <div class="feature-item">
+                <h4>🏗️ 基地建设系统</h4>
+                <p>建造和管理你的基地，包括资源生产、防御设施、研究实验室等多种建筑类型。</p>
+            </div>
+            <div class="feature-item">
+                <h4>📋 任务系统</h4>
+                <p>丰富的任务体系，包括主线任务、支线任务、日常任务和成就系统，引导玩家探索游戏世界。</p>
+            </div>
+            <div class="feature-item">
+                <h4>💎 资源收集</h4>
+                <p>收集木材、石头、金属、食物等各种资源，用于建造、制作和升级。</p>
+            </div>
+            <div class="feature-item">
+                <h4>⚔️ 战斗系统</h4>
+                <p>与各种敌人战斗，获得经验和奖励，提升角色实力。</p>
+            </div>
+            <div class="feature-item">
+                <h4>✨ 视觉特效</h4>
+                <p>精美的粒子特效系统，为游戏增添视觉魅力。</p>
+            </div>
+            <div class="feature-item">
+                <h4>⚡ 性能优化</h4>
+                <p>智能的区块加载和卸载系统，确保游戏在大世界中的流畅运行。</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 引入依赖的JavaScript文件 -->
+    <script src="config.js"></script>
+    <script src="performance-optimization.js"></script>
+    <script src="enhanced-particles.js"></script>
+    <script src="config-manager.js"></script>
+    <script src="infinite-map-generator.js"></script>
+    <script src="character-progression.js"></script>
+    <script src="base-building.js"></script>
+    <script src="quest-system.js"></script>
+    <script src="infinite-game.js"></script>
+    
+    <script>
+        // 游戏初始化
+        let game = null;
+        
+        function initGame() {
+            try {
+                const canvas = document.getElementById('gameCanvas');
+                const loadingScreen = document.getElementById('loadingScreen');
+                
+                // 检查所有必需的类是否已加载
+                const requiredClasses = [
+                    'ConfigManager',
+                    'PerformanceOptimization', 
+                    'EnhancedParticleSystem',
+                    'InfiniteMapGenerator',
+                    'CharacterProgression',
+                    'BaseBuildingSystem',
+                    'QuestSystem',
+                    'InfiniteGame'
+                ];
+                
+                const missingClasses = requiredClasses.filter(className => !window[className]);
+                
+                if (missingClasses.length > 0) {
+                    throw new Error(`缺少必需的类: ${missingClasses.join(', ')}`);
+                }
+                
+                // 创建游戏实例
+                game = new InfiniteGame(canvas);
+                
+                // 隐藏加载屏幕
+                loadingScreen.style.display = 'none';
+                
+                // 显示成功消息
+                showMessage('游戏加载成功！开始你的无限冒险之旅！', 'success');
+                
+                console.log('第五期无限地图养成类游戏启动成功');
+                
+            } catch (error) {
+                console.error('游戏初始化失败:', error);
+                showMessage(`游戏初始化失败: ${error.message}`, 'error');
+                
+                // 隐藏加载屏幕
+                document.getElementById('loadingScreen').style.display = 'none';
+            }
+        }
+        
+        function showMessage(message, type) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type;
+            messageDiv.textContent = message;
+            
+            // 插入到游戏容器后面
+            const gameContainer = document.querySelector('.game-container');
+            gameContainer.parentNode.insertBefore(messageDiv, gameContainer.nextSibling);
+            
+            // 5秒后自动移除成功消息
+            if (type === 'success') {
+                setTimeout(() => {
+                    if (messageDiv.parentNode) {
+                        messageDiv.parentNode.removeChild(messageDiv);
+                    }
+                }, 5000);
+            }
+        }
+        
+        // 页面加载完成后初始化游戏
+        window.addEventListener('load', () => {
+            // 延迟一点时间确保所有脚本都加载完成
+            setTimeout(initGame, 100);
+        });
+        
+        // 处理页面可见性变化
+        document.addEventListener('visibilitychange', () => {
+            if (game) {
+                if (document.hidden) {
+                    game.gameState = 'paused';
+                } else {
+                    game.gameState = 'playing';
+                }
+            }
+        });
+        
+        // 处理窗口大小变化
+        window.addEventListener('resize', () => {
+            if (game) {
+                const canvas = document.getElementById('gameCanvas');
+                // 可以在这里添加响应式调整逻辑
+            }
+        });
+        
+        // 防止页面刷新时丢失游戏状态
+        window.addEventListener('beforeunload', (e) => {
+            if (game) {
+                // 这里可以添加保存游戏状态的逻辑
+                e.preventDefault();
+                e.returnValue = '确定要离开吗？游戏进度可能会丢失。';
+            }
+        });
+    </script>
+</body>
+</html>
