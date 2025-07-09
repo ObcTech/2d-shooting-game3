@@ -124,8 +124,12 @@ class WaveSystem {
         
         if (!this.isWaveActive) {
             console.log(`[DEBUG] Wave not active - currentWave: ${this.currentWave}, lastWaveEndTime: ${this.lastWaveEndTime}`);
-            // 检查是否可以开始下一波（仅在非第一波时检查间隔时间）
-            if (this.currentWave > 1 && Date.now() - this.lastWaveEndTime > this.betweenWaveTime) {
+            // 检查是否可以开始下一波
+            if (this.currentWave === 1) {
+                // 第一波立即启动（如果autoStart失败的话）
+                console.log(`[DEBUG] Starting first wave`);
+                this.startWave();
+            } else if (this.currentWave > 1 && Date.now() - this.lastWaveEndTime > this.betweenWaveTime) {
                 console.log(`[DEBUG] Starting next wave`);
                 this.startWave();
             }
