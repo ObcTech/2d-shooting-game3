@@ -188,6 +188,16 @@ class InfiniteMapGenerator {
         return this.getChunk(chunkX, chunkY);
     }
 
+    // 卸载指定区块
+    unloadChunk(chunkX, chunkY) {
+        const chunkKey = `${chunkX},${chunkY}`;
+        if (this.chunks.has(chunkKey)) {
+            this.chunks.delete(chunkKey);
+            return true;
+        }
+        return false;
+    }
+
     // 获取地图统计信息
     getMapStats() {
         return {
